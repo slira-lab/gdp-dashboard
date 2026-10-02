@@ -7,20 +7,45 @@ from google.oauth2.service_account import Credentials
 import json
 
 # ==========================================
-# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO
+# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (TEMA CLARO)
 # ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-    div[data-testid="metric-container"] {
-        background-color: #1E1E1E;
-        border-left: 5px solid #5C95A6;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+    /* Achicar y estilizar el Título Principal */
+    .titulo-principal {
+        font-size: 2.2rem !important;
+        color: #5C95A6 !important;
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        margin-bottom: 0px;
+        padding-bottom: 15px;
     }
-    h1, h2, h3 { color: #5C95A6 !important; font-family: 'Arial', sans-serif; }
+    
+    /* Diseño de Tarjetas para los Indicadores (KPIs) de arriba */
+    [data-testid="stMetric"] {
+        background-color: #F8F9FA;
+        border-left: 6px solid #5C95A6;
+        border-radius: 8px;
+        padding: 15px 20px;
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    /* Reducir el tamaño de los números gigantes de los KPIs */
+    [data-testid="stMetricValue"] {
+        font-size: 1.8rem !important;
+        color: #333333 !important;
+    }
+    
+    /* Color de las etiquetas de los KPIs */
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        color: #666666 !important;
+        font-weight: bold;
+    }
+    
+    h2, h3 { color: #5C95A6 !important; font-family: 'Arial', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -110,7 +135,7 @@ pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtra
 # ==========================================
 # 5. DASHBOARD - CABECERA
 # ==========================================
-st.title("📊 Inteligencia Comercial y Desempeño")
+st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
@@ -131,39 +156,45 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================
 tab1, tab2, tab3 = st.tabs(["🌎 Visión General", "🧬 Análisis de Pruebas", "🏆 Ranking y Beneficios"])
 
-# --- PESTAÑA 1: VISIÓN GENERAL (Velocímetros, Mapa y Líneas) ---
+# --- PESTAÑA 1: VISIÓN GENERAL ---
 with tab1:
+    st.markdown("<br>", unsafe_allow_html=True)
     col_gauge1, col_gauge2 = st.columns(2)
+    
     with col_gauge1:
-        # Velocímetro de Pruebas (Meta: 500 pruebas)
+        # Velocímetro de Pruebas
         fig_g1 = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = pruebas_totales,
-            title = {'text': "Progreso Meta de Pruebas (Objetivo: 500)", 'font': {'color': '#A3C1CC'}},
-            gauge = {'axis': {'range': [None, 500]}, 'bar': {'color': "#5C95A6"}, 'bgcolor': "#1E1E1E"}
+            title = {'text': "Meta de Pruebas (Objetivo: 500)", 'font': {'color': '#5C95A6', 'size': 18}},
+            gauge = {'axis': {'range': [None, 500]}, 'bar': {'color': "#5C95A6"}, 'bgcolor': "#E5E5E5"}
         ))
-        fig_g1.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)")
+        fig_g1.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
         st.plotly_chart(fig_g1, use_container_width=True)
         
     with col_gauge2:
-        # Velocímetro de Ingresos (Meta: $1,500,000)
+        # Velocímetro de Ingresos (Ajustado a Meta de $50 Millones por tu volumen actual)
+        meta_ingresos = 50000000
         fig_g2 = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = ingreso_total,
-            number = {'prefix': "$"},
-            title = {'text': "Progreso Meta de Ingresos (Objetivo: $1.5M)", 'font': {'color': '#A3C1CC'}},
-            gauge = {'axis': {'range': [None, 1500000]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#1E1E1E"}
+            number = {'prefix': "$", 'valueformat': '.2s'}, # Formato corto para no saturar (Ej. $40M)
+            title = {'text': "Meta de Ingresos (Objetivo: $50M)", 'font': {'color': '#87A98A', 'size': 18}},
+            gauge = {'axis': {'range': [None, meta_ingresos]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
         ))
-        fig_g2.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)")
+        fig_g2.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
         st.plotly_chart(fig_g2, use_container_width=True)
 
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
     colA, colB = st.columns([2, 1])
     with colA:
         st.subheader("📈 Evolución Mensual")
         ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
         meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
         df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
-        fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_dark", markers=True, line_shape="spline")
+        # Gráfica adaptada para fondo blanco
+        fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_white", markers=True, line_shape="spline")
         fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
         st.plotly_chart(fig_line, use_container_width=True)
 
@@ -171,7 +202,7 @@ with tab1:
         st.subheader("📍 Cobertura Activa")
         st.map(df_med_filtrado, zoom=4, color='#5C95A6')
 
-# --- PESTAÑA 2: MIX DE PRUEBAS (Porcentajes y Dona) ---
+# --- PESTAÑA 2: MIX DE PRUEBAS ---
 with tab2:
     st.subheader("Porcentaje de Participación por Prueba")
     lista_df_prod = []
@@ -192,7 +223,6 @@ with tab2:
         df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_p) * 100 if total_p > 0 else 0
 
     if not df_productos.empty:
-        # Mostrar Top Pruebas con Barra de Progreso nativa de Streamlit
         top_pruebas = df_productos.head(4)
         cols_porcentaje = st.columns(len(top_pruebas))
         for idx, row in enumerate(top_pruebas.itertuples()):
@@ -202,17 +232,16 @@ with tab2:
         
         st.markdown("<br>", unsafe_allow_html=True)
         colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5']
-        fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_dark", color_discrete_sequence=colores_marca)
+        fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_white", color_discrete_sequence=colores_marca)
         fig_pie.update_traces(textposition='inside', textinfo='percent+label')
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
         st.info("No hay ventas registradas para generar el desglose.")
 
-# --- PESTAÑA 3: RANKING Y BENEFICIOS (Tablas Visuales) ---
+# --- PESTAÑA 3: RANKING Y BENEFICIOS ---
 with tab3:
     st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
     
-    # Crear un DataFrame consolidado por médico
     df_ranking = []
     for index, row in df_fact_filtrado.iterrows():
         nombre = row['NOMBRE']
@@ -224,11 +253,9 @@ with tab3:
     df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Ingreso ($)', ascending=False)
     
     if not df_ranking.empty:
-        # CORRECCIÓN EXACTA PARA EVITAR EL ERROR DE JSON SERIALIZABLE
         max_ingreso = float(df_ranking['Ingreso ($)'].max())
         max_pruebas = int(df_ranking['Pruebas'].max())
         
-        # Tabla Visual con Barras de Progreso incrustadas
         st.dataframe(
             df_ranking,
             column_config={
