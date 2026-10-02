@@ -5,23 +5,24 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 
+# 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="Dashboard Comercial Médico", layout="wide")
 
 @st.cache_data(ttl=600) # Se actualiza solo cada 10 minutos
 def load_data():
-    # 1. Leer la Llave Secreta
+    # 2. LEER LA LLAVE SECRETA DE STREAMLIT
     cred_dict = json.loads(st.secrets["google_credentials"])
     scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_info(cred_dict, scopes=scopes)
     client = gspread.authorize(creds)
     
-    # 2. Conectar a tu Excel (¡PON TU LINK AQUÍ ABAJO!)
+    # 3. CONECTAR AL LINK DE TU GOOGLE SHEETS
     sheet_url = "https://docs.google.com/spreadsheets/d/1Zr3YUCUXFwZIRRSGIBnnW60dji1pcnda1VHwZ6HXcYQ/edit?usp=sharing"
     doc = client.open_by_url(sheet_url)
     
-    # 3. Leer la lista de Médicos
+    # 4. LEER LA PESTAÑA "MEDICOS" (Ajustado a la Fila 3 para los títulos)
     datos = doc.worksheet('MEDICOS').get_all_values()
-    df = pd.DataFrame(datos[2:], columns=datos[1]) # Toma los títulos de tu Excel
+    df = pd.DataFrame(datos[3:], columns=datos[2]) # Fila 3 = Títulos, Fila 4 = Datos
     df = df[df['NOMBRE'] != ""] # Quita filas vacías
     return df
 
@@ -30,7 +31,8 @@ st.title("📊 Portal de Inteligencia Comercial")
 try:
     df_medicos = load_data()
 except Exception as e:
-    st.warning("Conectando con la Base de Datos... (Asegúrate de pegar la llave secreta en el Paso 3)")
+    st.error(f"Detalle del error técnico: {e}")
+    st.warning("Conectando con la Base de Datos... (Revisando permisos y filas)")
     st.stop()
 
 # --- FILTROS LATERALES ---
