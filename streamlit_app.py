@@ -80,12 +80,12 @@ def load_data():
     df_fact = pd.DataFrame(datos_fact[idx_fac+1:], columns=datos_fact[idx_fac])
     df_fact = df_fact[df_fact['NOMBRE'] != ""]
     
-    # Limpieza de Cifras con formato 10.000,00
+    # Limpieza de Cifras
     for col in df_fact.columns:
         if 'Monto' in col or 'Inversión' in col or 'INVERSIÓN' in col.upper():
             texto_limpio = df_fact[col].astype(str).str.replace('$', '', regex=False)
-            texto_limpio = texto_limpio.str.replace('.', '', regex=False) # Quita puntos de miles
-            texto_limpio = texto_limpio.str.replace(',', '.', regex=False) # Convierte coma decimal a punto
+            texto_limpio = texto_limpio.str.replace('.', '', regex=False) 
+            texto_limpio = texto_limpio.str.replace(',', '.', regex=False) 
             df_fact[col] = pd.to_numeric(texto_limpio, errors='coerce').fillna(0)
         elif 'Cantidad' in col:
             df_fact[col] = pd.to_numeric(df_fact[col], errors='coerce').fillna(0)
@@ -130,6 +130,7 @@ pruebas_global = df_fact[[c for c in cant_meses if c in df_fact.columns]].sum().
 ingreso_total = df_fact_filtrado[[c for c in monto_meses if c in df_fact_filtrado.columns]].sum().sum()
 pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
 
+# Calculamos el porcentaje
 porcentaje_ingreso = (ingreso_total / ingreso_global) * 100 if ingreso_global > 0 else 0
 
 # ==========================================
@@ -139,7 +140,8 @@ st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempe�
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Ingreso Total Real", f"${ingreso_total:,.2f}", delta=f"{porcentaje_ingreso:.1f}% del global", delta_color="off")
+    # AHORA MUESTRA EL PORCENTAJE EN LUGAR DEL DINERO
+    st.metric("Cuota de Ingresos (%)", f"{porcentaje_ingreso:.2f}%")
 with col2:
     st.metric("Total de Pruebas", int(pruebas_totales))
 with col3:
@@ -172,13 +174,13 @@ with tab1:
         st.plotly_chart(fig_g1, use_container_width=True)
         
     with col_gauge2:
-        meta_ingresos = 30000000 # Ajustado a 30 Millones basado en el archivo real
+        # AHORA EL VELOCÍMETRO MIDE EL PORCENTAJE DE 0 A 100%
         fig_g2 = go.Figure(go.Indicator(
             mode = "gauge+number",
-            value = ingreso_total,
-            number = {'prefix': "$", 'valueformat': '.2s'},
-            title = {'text': f"Meta de Ingresos (Objetivo: $30M)", 'font': {'color': '#87A98A', 'size': 18}},
-            gauge = {'axis': {'range': [None, meta_ingresos]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
+            value = porcentaje_ingreso,
+            number = {'suffix': "%", 'valueformat': '.2f'},
+            title = {'text': "Participación Global de Ingresos", 'font': {'color': '#87A98A', 'size': 18}},
+            gauge = {'axis': {'range': [None, 100]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
         ))
         fig_g2.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
         st.plotly_chart(fig_g2, use_container_width=True)
@@ -250,7 +252,8 @@ with tab3:
     df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Ingreso ($)', ascending=False)
     
     if not df_ranking.empty:
-        max_ingreso = float(df_ranking['Ingreso ($)'].max())
+        # AHORA CALCULAMOS EL PORCENTAJE PARA LA TABLA
+        df_ranking['% de Ingresos'] = (df_ranking['Ingreso ($)'] / ingreso_global) * 100 if ingreso_global > 0 else 0
         max_pruebas = int(df_ranking['Pruebas'].max())
         
         st.dataframe(
@@ -258,10 +261,13 @@ with tab3:
             column_config={
                 "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
                 "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
-                "Ingreso ($)": st.column_config.ProgressColumn("Ingreso Real", format="$%.2f", min_value=0, max_value=max_ingreso),
+                # AHORA MUESTRA LA BARRA CON PORCENTAJE
+                "% de Ingresos": st.column_config.ProgressColumn("Cuota de Ingresos (%)", format="%.2f%%", min_value=0, max_value=100),
                 "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%.2f")
             },
             hide_index=True,
+            # Ocultamos la columna original de dinero
+            column_order=["Médico", "Pruebas", "% de Ingresos", "Beneficio ($)"],
             use_container_width=True
         )
     else:
