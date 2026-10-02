@@ -116,18 +116,21 @@ else:
     df_fact_filtrado = df_fact
 
 # ==========================================
-# 4. CÁLCULO DE KPIs Y PORCENTAJES
+# 4. CÁLCULO DE PORCENTAJES (SIN CIFRAS)
 # ==========================================
 monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 
-# Ingreso del filtro seleccionado
+# Globales (para sacar el %)
+ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
+pruebas_global = df_fact[[c for c in cant_meses if c in df_fact.columns]].sum().sum()
+
+# Filtrados
 ingreso_total = df_fact_filtrado[[c for c in monto_meses if c in df_fact_filtrado.columns]].sum().sum()
 pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
 
-# Ingreso global (Sin importar el filtro) para sacar el porcentaje
-ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
 porcentaje_ingreso = (ingreso_total / ingreso_global) * 100 if ingreso_global > 0 else 0
+porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
 # ==========================================
 # 5. DASHBOARD - CABECERA
@@ -136,10 +139,9 @@ st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempe�
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    # AQUÍ AGREGAMOS EL PORCENTAJE DE PARTICIPACIÓN COMO "DELTA"
-    st.metric("Ingreso Total Real", f"${ingreso_total:,.2f}", delta=f"{porcentaje_ingreso:.1f}% del global", delta_color="off")
+    st.metric("Participación de Ingresos", f"{porcentaje_ingreso:.1f}%")
 with col2:
-    st.metric("Total de Pruebas", int(pruebas_totales))
+    st.metric("Participación de Pruebas", f"{porcentaje_pruebas:.1f}%")
 with col3:
     rep = df_med_filtrado['REPRESENTANTE'].iloc[0] if medico_seleccionado != "Todos" else "Múltiples"
     st.metric("Representante", rep)
@@ -160,23 +162,25 @@ with tab1:
     col_gauge1, col_gauge2 = st.columns(2)
     
     with col_gauge1:
+        # Velocímetro 100%
         fig_g1 = go.Figure(go.Indicator(
             mode = "gauge+number",
-            value = pruebas_totales,
-            title = {'text': "Meta de Pruebas (Objetivo: 500)", 'font': {'color': '#5C95A6', 'size': 18}},
-            gauge = {'axis': {'range': [None, 500]}, 'bar': {'color': "#5C95A6"}, 'bgcolor': "#E5E5E5"}
+            value = porcentaje_pruebas,
+            number = {'suffix': "%", 'valueformat': '.1f'},
+            title = {'text': "Cuota de Pruebas", 'font': {'color': '#5C95A6', 'size': 18}},
+            gauge = {'axis': {'range': [None, 100]}, 'bar': {'color': "#5C95A6"}, 'bgcolor': "#E5E5E5"}
         ))
         fig_g1.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
         st.plotly_chart(fig_g1, use_container_width=True)
         
     with col_gauge2:
-        meta_ingresos = 50000000
+        # Velocímetro 100%
         fig_g2 = go.Figure(go.Indicator(
             mode = "gauge+number",
-            value = ingreso_total,
-            number = {'prefix': "$", 'valueformat': '.2s'},
-            title = {'text': "Meta de Ingresos (Objetivo: $50M)", 'font': {'color': '#87A98A', 'size': 18}},
-            gauge = {'axis': {'range': [None, meta_ingresos]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
+            value = porcentaje_ingreso,
+            number = {'suffix': "%", 'valueformat': '.1f'},
+            title = {'text': "Cuota de Ingresos", 'font': {'color': '#87A98A', 'size': 18}},
+            gauge = {'axis': {'range': [None, 100]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
         ))
         fig_g2.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
         st.plotly_chart(fig_g2, use_container_width=True)
@@ -185,12 +189,14 @@ with tab1:
     
     colA, colB = st.columns([2, 1])
     with colA:
-        st.subheader("📈 Evolución Mensual")
+        st.subheader("📈 Tendencia Mensual (Sin Cifras)")
         ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
         meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-        df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
-        fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_white", markers=True, line_shape="spline")
+        df_linea = pd.DataFrame({'Mes': meses_nombres, 'Tendencia': ventas_por_mes})
+        fig_line = px.line(df_linea, x='Mes', y='Tendencia', template="plotly_white", markers=True, line_shape="spline")
         fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
+        # MAGIA: Ocultar los números del eje lateral para mayor confidencialidad
+        fig_line.update_yaxes(showticklabels=False, title="")
         st.plotly_chart(fig_line, use_container_width=True)
 
     with colB:
@@ -222,43 +228,45 @@ with tab2:
         cols_porcentaje = st.columns(len(top_pruebas))
         for idx, row in enumerate(top_pruebas.itertuples()):
             with cols_porcentaje[idx]:
-                st.metric(label=f"🧬 {row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} ventas", delta_color="off")
+                # Removimos las ventas exactas, ahora solo dice la prueba y el %
+                st.metric(label=f"🧬 {row.Producto}", value=f"{row.Porcentaje:.1f}%")
                 st.progress(int(row.Porcentaje))
         
         st.markdown("<br>", unsafe_allow_html=True)
         colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5']
         fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_white", color_discrete_sequence=colores_marca)
-        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label', hoverinfo='label+percent')
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
         st.info("No hay ventas registradas para generar el desglose.")
 
-# --- PESTAÑA 3: RANKING Y BENEFICIOS ---
+# --- PESTAÑA 3: RANKING Y BENEFICIOS (TABLA 100% PORCENTUAL) ---
 with tab3:
-    st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
+    st.subheader("🏆 Ranking de Participación (%)")
     
     df_ranking = []
     for index, row in df_fact_filtrado.iterrows():
         nombre = row['NOMBRE']
         ingresos_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in monto_meses if c in df_fact.columns)
         pruebas_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in cant_meses if c in df_fact.columns)
-        inversion = row['Inversión Total'] if 'Inversión Total' in df_fact.columns else 0
-        df_ranking.append({'Médico': nombre, 'Pruebas': pruebas_medico, 'Ingreso ($)': ingresos_medico, 'Beneficio ($)': pd.to_numeric(inversion, errors='coerce')})
+        df_ranking.append({'Médico': nombre, 'Pruebas': pruebas_medico, 'Ingreso ($)': ingresos_medico})
         
     df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Ingreso ($)', ascending=False)
     
     if not df_ranking.empty:
-        max_ingreso = float(df_ranking['Ingreso ($)'].max())
-        max_pruebas = int(df_ranking['Pruebas'].max())
+        # Convertir montos a porcentajes del total global
+        df_ranking['% de Pruebas'] = (df_ranking['Pruebas'] / pruebas_global) * 100 if pruebas_global > 0 else 0
+        df_ranking['% de Ingresos'] = (df_ranking['Ingreso ($)'] / ingreso_global) * 100 if ingreso_global > 0 else 0
+        
+        # Filtramos para que SOLO muestre las columnas de porcentaje (ocultamos dinero y número de pruebas)
+        df_mostrar = df_ranking[['Médico', '% de Pruebas', '% de Ingresos']]
         
         st.dataframe(
-            df_ranking,
+            df_mostrar,
             column_config={
                 "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
-                "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
-                # AQUÍ CORREGIMOS LOS DECIMALES EXCESIVOS A 2 DECIMALES (%.2f)
-                "Ingreso ($)": st.column_config.ProgressColumn("Ingreso Real", format="$%.2f", min_value=0, max_value=max_ingreso),
-                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%.2f")
+                "% de Pruebas": st.column_config.ProgressColumn("Participación de Pruebas", format="%.2f%%", min_value=0, max_value=100),
+                "% de Ingresos": st.column_config.ProgressColumn("Participación de Ingresos", format="%.2f%%", min_value=0, max_value=100)
             },
             hide_index=True,
             use_container_width=True
