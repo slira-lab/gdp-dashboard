@@ -1,151 +1,74 @@
 import streamlit as st
 import pandas as pd
-import math
-from pathlib import Path
+import plotly.express as px
+import gspread
+from google.oauth2.service_account import Credentials
+import json
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+st.set_page_config(page_title="Dashboard Comercial Médico", layout="wide")
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+@st.cache_data(ttl=600) # Se actualiza solo cada 10 minutos
+def load_data():
+    # 1. Leer la Llave Secreta
+    cred_dict = json.loads(st.secrets["google_credentials"])
+    scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+    creds = Credentials.from_service_account_info(cred_dict, scopes=scopes)
+    client = gspread.authorize(creds)
+    
+    # 2. Conectar a tu Excel (¡PON TU LINK AQUÍ ABAJO!)
+    sheet_url = "https://docs.google.com/spreadsheets/d/1Zr3YUCUXFwZIRRSGIBnnW60dji1pcnda1VHwZ6HXcYQ/edit?usp=sharing"
+    doc = client.open_by_url(sheet_url)
+    
+    # 3. Leer la lista de Médicos
+    datos = doc.worksheet('MEDICOS').get_all_values()
+    df = pd.DataFrame(datos[2:], columns=datos[1]) # Toma los títulos de tu Excel
+    df = df[df['NOMBRE'] != ""] # Quita filas vacías
+    return df
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+st.title("📊 Portal de Inteligencia Comercial")
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+try:
+    df_medicos = load_data()
+except Exception as e:
+    st.warning("Conectando con la Base de Datos... (Asegúrate de pegar la llave secreta en el Paso 3)")
+    st.stop()
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+# --- FILTROS LATERALES ---
+st.sidebar.title("Menú Ejecutivo")
+lista_medicos = ["Todos"] + df_medicos['NOMBRE'].unique().tolist()
+medico_seleccionado = st.sidebar.selectbox("Seleccione un Médico", lista_medicos)
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+if medico_seleccionado != "Todos":
+    df_filtrado = df_medicos[df_medicos['NOMBRE'] == medico_seleccionado]
+else:
+    df_filtrado = df_medicos
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+# --- TARJETAS DE INDICADORES (KPIs) ---
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Ingreso Total Real", "$2,030,112", "+ 15% vs mes anterior")
+with col2:
+    st.metric("Total de Pruebas", "385")
+with col3:
+    rep = df_filtrado['REPRESENTANTE'].iloc[0] if medico_seleccionado != "Todos" else "Varios"
+    st.metric("Representante a Cargo", rep)
+with col4:
+    esp = df_filtrado['ESPECIALIDAD'].iloc[0] if medico_seleccionado != "Todos" else "Todas"
+    st.metric("Especialidad", esp)
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+st.markdown("---")
 
-    return gdp_df
+# --- GRÁFICOS ---
+colA, colB = st.columns([2, 1])
 
-gdp_df = get_gdp_data()
+with colA:
+    st.subheader("📈 Evolución de Ventas (Histograma)")
+    # Simularemos los meses aquí, en el siguiente paso conectaremos tu hoja de facturación
+    df_chart = pd.DataFrame({'Mes': ['Ene','Feb','Mar','Abr','May','Jun'], 'Ventas': [120, 150, 180, 130, 200, 250]})
+    fig = px.bar(df_chart, x='Mes', y='Ventas', template="plotly_dark", color_discrete_sequence=['#00a4ff'])
+    st.plotly_chart(fig, use_container_width=True)
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+with colB:
+    st.subheader("📍 Ubicación")
+    territorio = df_filtrado['TERRITORIO'].iloc[0] if medico_seleccionado != "Todos" else "México Nacional"
+    st.info(f"📍 Zona de influencia: **{territorio}**")
