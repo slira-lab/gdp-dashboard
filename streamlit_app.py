@@ -224,8 +224,9 @@ with tab3:
     df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Ingreso ($)', ascending=False)
     
     if not df_ranking.empty:
-        max_ingreso = df_ranking['Ingreso ($)'].max()
-        max_pruebas = df_ranking['Pruebas'].max()
+        # CORRECCIÓN EXACTA PARA EVITAR EL ERROR DE JSON SERIALIZABLE
+        max_ingreso = float(df_ranking['Ingreso ($)'].max())
+        max_pruebas = int(df_ranking['Pruebas'].max())
         
         # Tabla Visual con Barras de Progreso incrustadas
         st.dataframe(
