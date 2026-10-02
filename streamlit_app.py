@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import gspread
 from google.oauth2.service_account import Credentials
 import json
@@ -8,11 +9,10 @@ import json
 # ==========================================
 # 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO
 # ==========================================
-st.set_page_config(page_title="SouthGenetics | Dashboard Comercial", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-    /* Tarjetas de Indicadores Principales */
     div[data-testid="metric-container"] {
         background-color: #1E1E1E;
         border-left: 5px solid #5C95A6;
@@ -20,15 +20,12 @@ st.markdown("""
         border-radius: 8px;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
     }
-    /* Títulos con color de la marca */
     h1, h2, h3 { color: #5C95A6 !important; font-family: 'Arial', sans-serif; }
-    /* Estilo de la tabla de beneficios */
-    .stDataFrame { border-radius: 8px; overflow: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. CONEXIÓN Y LIMPIEZA DE DATOS (Optimizada)
+# 2. CONEXIÓN A DATOS
 # ==========================================
 @st.cache_data(ttl=600)
 def load_data():
@@ -40,13 +37,12 @@ def load_data():
     sheet_url = "https://docs.google.com/spreadsheets/d/1Zr3YUCUXFwZIRRSGIBnnW60dji1pcnda1VHwZ6HXcYQ/edit?usp=sharing"
     doc = client.open_by_url(sheet_url)
     
-    # LEER MÉDICOS
+    # MÉDICOS
     datos_medicos = doc.worksheet('MEDICOS').get_all_values()
     idx_med = next(i for i, row in enumerate(datos_medicos) if 'NOMBRE' in row)
     df_medicos = pd.DataFrame(datos_medicos[idx_med+1:], columns=datos_medicos[idx_med])
     df_medicos = df_medicos[df_medicos['NOMBRE'] != ""]
     
-    # COORDENADAS MAPA
     coords = {
         'Guadalajara': [20.6596, -103.3496], 'Chihuahua': [28.6329, -106.0691],
         'CDMX Norte': [19.4326, -99.1332], 'CDMX Sur': [19.3000, -99.1500],
@@ -61,13 +57,12 @@ def load_data():
     df_medicos['lat'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[0])
     df_medicos['lon'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[1])
 
-    # LEER FACTURACIÓN Y BENEFICIOS
+    # FACTURACIÓN
     datos_fact = doc.worksheet('FACTURACION').get_all_values()
     idx_fac = next(i for i, row in enumerate(datos_fact) if 'NOMBRE' in row)
     df_fact = pd.DataFrame(datos_fact[idx_fac+1:], columns=datos_fact[idx_fac])
     df_fact = df_fact[df_fact['NOMBRE'] != ""]
     
-    # Limpiar columnas numéricas (Montos, Cantidades e Inversiones)
     for col in df_fact.columns:
         if 'Monto' in col or 'Inversión' in col or 'INVERSIÓN' in col.upper():
             df_fact[col] = df_fact[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
@@ -84,7 +79,7 @@ except Exception as e:
     st.stop()
 
 # ==========================================
-# 3. BARRA LATERAL (LOGO Y FILTROS)
+# 3. BARRA LATERAL
 # ==========================================
 try:
     st.sidebar.image("LOGO SG (1) (2).png", use_container_width=True)
@@ -104,108 +99,145 @@ else:
     df_fact_filtrado = df_fact
 
 # ==========================================
-# 4. PROCESAMIENTO DE PRUEBAS VENDIDAS
+# 4. CÁLCULO DE KPIs
 # ==========================================
-meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-lista_df_prod = []
+monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
+cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 
-for mes in meses_completos:
-    c_prod, c_cant = f'Producto {mes}', f'Cantidad {mes}'
-    if c_prod in df_fact_filtrado.columns and c_cant in df_fact_filtrado.columns:
-        temp = df_fact_filtrado[[c_prod, c_cant]].copy()
-        temp.columns = ['Producto', 'Cantidad']
-        lista_df_prod.append(temp)
-
-df_productos = pd.DataFrame()
-if lista_df_prod:
-    df_productos = pd.concat(lista_df_prod)
-    df_productos = df_productos[df_productos['Producto'].notna()]
-    df_productos['Producto'] = df_productos['Producto'].astype(str).str.strip()
-    df_productos = df_productos[(df_productos['Producto'] != '0') & (df_productos['Producto'] != '')]
-    df_productos = df_productos.groupby('Producto')['Cantidad'].sum().reset_index()
-    df_productos = df_productos[df_productos['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
-    
-    # Calcular Porcentajes
-    total_pruebas = df_productos['Cantidad'].sum()
-    df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_pruebas) * 100 if total_pruebas > 0 else 0
+ingreso_total = df_fact_filtrado[[c for c in monto_meses if c in df_fact_filtrado.columns]].sum().sum()
+pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
 
 # ==========================================
-# 5. DASHBOARD VISUAL
+# 5. DASHBOARD - CABECERA
 # ==========================================
-st.title("📊 Análisis de Desempeño y Territorios")
-st.markdown("---")
+st.title("📊 Inteligencia Comercial y Desempeño")
 
-# FILA 1: DESGLOSE DE PORCENTAJES DE PRUEBAS (El nuevo requerimiento)
-st.subheader("🧬 Desglose de Pruebas (%)")
-if not df_productos.empty:
-    # Mostramos el top 4 de pruebas para que se vea estético
-    top_pruebas = df_productos.head(4)
-    cols_porcentaje = st.columns(len(top_pruebas))
-    
-    for idx, row in enumerate(top_pruebas.itertuples()):
-        with cols_porcentaje[idx]:
-            st.metric(label=f"Prueba: {row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} vendidas", delta_color="off")
-            # Barra de progreso visual
-            st.progress(int(row.Porcentaje))
-else:
-    st.info("No hay ventas registradas para generar el porcentaje.")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Ingreso Total Real", f"${ingreso_total:,.2f}")
+with col2:
+    st.metric("Total de Pruebas", int(pruebas_totales))
+with col3:
+    rep = df_med_filtrado['REPRESENTANTE'].iloc[0] if medico_seleccionado != "Todos" else "Múltiples"
+    st.metric("Representante", rep)
+with col4:
+    esp = df_med_filtrado['ESPECIALIDAD'].iloc[0] if medico_seleccionado != "Todos" else "Todas"
+    st.metric("Especialidad", esp)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# FILA 2: GRÁFICOS (Evolución y Donillo)
-col_graf1, col_graf2 = st.columns([2, 1])
+# ==========================================
+# 6. SISTEMA DE PESTAÑAS (TABS)
+# ==========================================
+tab1, tab2, tab3 = st.tabs(["🌎 Visión General", "🧬 Análisis de Pruebas", "🏆 Ranking y Beneficios"])
 
-with col_graf1:
-    st.subheader("📈 Evolución de Ventas (Volumen Mensual)")
-    cant_meses = [f'Cantidad {m}' for m in meses_completos]
-    ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
-    meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-    
-    df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
-    fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_dark", markers=True, line_shape="spline")
-    fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
-    st.plotly_chart(fig_line, use_container_width=True)
+# --- PESTAÑA 1: VISIÓN GENERAL (Velocímetros, Mapa y Líneas) ---
+with tab1:
+    col_gauge1, col_gauge2 = st.columns(2)
+    with col_gauge1:
+        # Velocímetro de Pruebas (Meta: 500 pruebas)
+        fig_g1 = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = pruebas_totales,
+            title = {'text': "Progreso Meta de Pruebas (Objetivo: 500)", 'font': {'color': '#A3C1CC'}},
+            gauge = {'axis': {'range': [None, 500]}, 'bar': {'color': "#5C95A6"}, 'bgcolor': "#1E1E1E"}
+        ))
+        fig_g1.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_g1, use_container_width=True)
+        
+    with col_gauge2:
+        # Velocímetro de Ingresos (Meta: $1,500,000)
+        fig_g2 = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = ingreso_total,
+            number = {'prefix': "$"},
+            title = {'text': "Progreso Meta de Ingresos (Objetivo: $1.5M)", 'font': {'color': '#A3C1CC'}},
+            gauge = {'axis': {'range': [None, 1500000]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#1E1E1E"}
+        ))
+        fig_g2.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig_g2, use_container_width=True)
 
-with col_graf2:
-    st.subheader("📊 Mix Histórico")
+    colA, colB = st.columns([2, 1])
+    with colA:
+        st.subheader("📈 Evolución Mensual")
+        ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
+        meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+        df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
+        fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_dark", markers=True, line_shape="spline")
+        fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
+        st.plotly_chart(fig_line, use_container_width=True)
+
+    with colB:
+        st.subheader("📍 Cobertura Activa")
+        st.map(df_med_filtrado, zoom=4, color='#5C95A6')
+
+# --- PESTAÑA 2: MIX DE PRUEBAS (Porcentajes y Dona) ---
+with tab2:
+    st.subheader("Porcentaje de Participación por Prueba")
+    lista_df_prod = []
+    for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+        if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
+            temp = df_fact_filtrado[[f'Producto {mes}', f'Cantidad {mes}']].copy()
+            temp.columns = ['Producto', 'Cantidad']
+            lista_df_prod.append(temp)
+            
+    df_productos = pd.DataFrame()
+    if lista_df_prod:
+        df_productos = pd.concat(lista_df_prod).dropna()
+        df_productos['Producto'] = df_productos['Producto'].astype(str).str.strip()
+        df_productos = df_productos[(df_productos['Producto'] != '0') & (df_productos['Producto'] != '')]
+        df_productos = df_productos.groupby('Producto')['Cantidad'].sum().reset_index()
+        df_productos = df_productos[df_productos['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
+        total_p = df_productos['Cantidad'].sum()
+        df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_p) * 100 if total_p > 0 else 0
+
     if not df_productos.empty:
+        # Mostrar Top Pruebas con Barra de Progreso nativa de Streamlit
+        top_pruebas = df_productos.head(4)
+        cols_porcentaje = st.columns(len(top_pruebas))
+        for idx, row in enumerate(top_pruebas.itertuples()):
+            with cols_porcentaje[idx]:
+                st.metric(label=f"🧬 {row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} ventas", delta_color="off")
+                st.progress(int(row.Porcentaje))
+        
+        st.markdown("<br>", unsafe_allow_html=True)
         colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5']
         fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_dark", color_discrete_sequence=colores_marca)
-        fig_pie.update_layout(showlegend=False)
         fig_pie.update_traces(textposition='inside', textinfo='percent+label')
         st.plotly_chart(fig_pie, use_container_width=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# FILA 3: BENEFICIOS (INVERSIÓN) Y MAPA
-col_ben, col_mapa = st.columns([2, 1])
-
-with col_ben:
-    st.subheader("🏆 Médicos con Programa de Beneficios")
-    
-    # Buscar la columna de Inversión
-    col_inversion = next((c for c in df_fact.columns if 'Inversión Total' in c or 'INVERSIÓN' in c.upper()), None)
-    
-    if col_inversion:
-        # Filtrar solo los que tienen inversión mayor a 0
-        df_beneficios = df_fact[df_fact[col_inversion] > 0][['NOMBRE', col_inversion]].copy()
-        
-        if not df_beneficios.empty:
-            # Cruzar con datos médicos para traer especialidad y territorio
-            df_beneficios = pd.merge(df_beneficios, df_medicos[['NOMBRE', 'ESPECIALIDAD', 'TERRITORIO']], on='NOMBRE', how='left')
-            df_beneficios = df_beneficios.rename(columns={col_inversion: 'Inversión (USD)'})
-            
-            # Formatear el dinero para que se vea bonito
-            df_beneficios['Inversión (USD)'] = df_beneficios['Inversión (USD)'].apply(lambda x: f"${x:,.2f}")
-            
-            st.dataframe(df_beneficios, use_container_width=True, hide_index=True)
-        else:
-            st.info("Ningún médico en la selección actual cuenta con Inversión registrada.")
     else:
-        st.warning("No se encontró la columna de 'Inversión Total' en la hoja de Facturación.")
+        st.info("No hay ventas registradas para generar el desglose.")
 
-with col_mapa:
-    st.subheader("📍 Cobertura")
-    st.map(df_med_filtrado, zoom=4, color='#5C95A6')
-    territorio = df_med_filtrado['TERRITORIO'].iloc[0] if medico_seleccionado != "Todos" else "Nacional"
-    st.caption(f"**Zona actual:** {territorio}")
+# --- PESTAÑA 3: RANKING Y BENEFICIOS (Tablas Visuales) ---
+with tab3:
+    st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
+    
+    # Crear un DataFrame consolidado por médico
+    df_ranking = []
+    for index, row in df_fact_filtrado.iterrows():
+        nombre = row['NOMBRE']
+        ingresos_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in monto_meses if c in df_fact.columns)
+        pruebas_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in cant_meses if c in df_fact.columns)
+        inversion = row['Inversión Total'] if 'Inversión Total' in df_fact.columns else 0
+        df_ranking.append({'Médico': nombre, 'Pruebas': pruebas_medico, 'Ingreso ($)': ingresos_medico, 'Beneficio ($)': pd.to_numeric(inversion, errors='coerce')})
+        
+    df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Ingreso ($)', ascending=False)
+    
+    if not df_ranking.empty:
+        max_ingreso = df_ranking['Ingreso ($)'].max()
+        max_pruebas = df_ranking['Pruebas'].max()
+        
+        # Tabla Visual con Barras de Progreso incrustadas
+        st.dataframe(
+            df_ranking,
+            column_config={
+                "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
+                "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
+                "Ingreso ($)": st.column_config.ProgressColumn("Ingreso Real", format="$%f", min_value=0, max_value=max_ingreso),
+                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%f")
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+    else:
+        st.info("Sin datos para generar ranking.")
