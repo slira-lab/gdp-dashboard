@@ -7,13 +7,12 @@ from google.oauth2.service_account import Credentials
 import json
 
 # ==========================================
-# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (TEMA CLARO)
+# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO
 # ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-    /* Achicar y estilizar el Título Principal */
     .titulo-principal {
         font-size: 2.2rem !important;
         color: #5C95A6 !important;
@@ -22,8 +21,6 @@ st.markdown("""
         margin-bottom: 0px;
         padding-bottom: 15px;
     }
-    
-    /* Diseño de Tarjetas para los Indicadores (KPIs) de arriba */
     [data-testid="stMetric"] {
         background-color: #F8F9FA;
         border-left: 6px solid #5C95A6;
@@ -31,20 +28,15 @@ st.markdown("""
         padding: 15px 20px;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
     }
-    
-    /* Reducir el tamaño de los números gigantes de los KPIs */
     [data-testid="stMetricValue"] {
         font-size: 1.8rem !important;
         color: #333333 !important;
     }
-    
-    /* Color de las etiquetas de los KPIs */
     [data-testid="stMetricLabel"] {
         font-size: 1rem !important;
         color: #666666 !important;
         font-weight: bold;
     }
-    
     h2, h3 { color: #5C95A6 !important; font-family: 'Arial', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
@@ -124,13 +116,18 @@ else:
     df_fact_filtrado = df_fact
 
 # ==========================================
-# 4. CÁLCULO DE KPIs
+# 4. CÁLCULO DE KPIs Y PORCENTAJES
 # ==========================================
 monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 
+# Ingreso del filtro seleccionado
 ingreso_total = df_fact_filtrado[[c for c in monto_meses if c in df_fact_filtrado.columns]].sum().sum()
 pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
+
+# Ingreso global (Sin importar el filtro) para sacar el porcentaje
+ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
+porcentaje_ingreso = (ingreso_total / ingreso_global) * 100 if ingreso_global > 0 else 0
 
 # ==========================================
 # 5. DASHBOARD - CABECERA
@@ -139,7 +136,8 @@ st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempe�
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Ingreso Total Real", f"${ingreso_total:,.2f}")
+    # AQUÍ AGREGAMOS EL PORCENTAJE DE PARTICIPACIÓN COMO "DELTA"
+    st.metric("Ingreso Total Real", f"${ingreso_total:,.2f}", delta=f"{porcentaje_ingreso:.1f}% del global", delta_color="off")
 with col2:
     st.metric("Total de Pruebas", int(pruebas_totales))
 with col3:
@@ -162,7 +160,6 @@ with tab1:
     col_gauge1, col_gauge2 = st.columns(2)
     
     with col_gauge1:
-        # Velocímetro de Pruebas
         fig_g1 = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = pruebas_totales,
@@ -173,12 +170,11 @@ with tab1:
         st.plotly_chart(fig_g1, use_container_width=True)
         
     with col_gauge2:
-        # Velocímetro de Ingresos (Ajustado a Meta de $50 Millones por tu volumen actual)
         meta_ingresos = 50000000
         fig_g2 = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = ingreso_total,
-            number = {'prefix': "$", 'valueformat': '.2s'}, # Formato corto para no saturar (Ej. $40M)
+            number = {'prefix': "$", 'valueformat': '.2s'},
             title = {'text': "Meta de Ingresos (Objetivo: $50M)", 'font': {'color': '#87A98A', 'size': 18}},
             gauge = {'axis': {'range': [None, meta_ingresos]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
         ))
@@ -193,7 +189,6 @@ with tab1:
         ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
         meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
         df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
-        # Gráfica adaptada para fondo blanco
         fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_white", markers=True, line_shape="spline")
         fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
         st.plotly_chart(fig_line, use_container_width=True)
@@ -261,8 +256,9 @@ with tab3:
             column_config={
                 "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
                 "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
-                "Ingreso ($)": st.column_config.ProgressColumn("Ingreso Real", format="$%f", min_value=0, max_value=max_ingreso),
-                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%f")
+                # AQUÍ CORREGIMOS LOS DECIMALES EXCESIVOS A 2 DECIMALES (%.2f)
+                "Ingreso ($)": st.column_config.ProgressColumn("Ingreso Real", format="$%.2f", min_value=0, max_value=max_ingreso),
+                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%.2f")
             },
             hide_index=True,
             use_container_width=True
