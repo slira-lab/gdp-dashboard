@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import gspread
 from google.oauth2.service_account import Credentials
 import json
@@ -54,7 +53,6 @@ def load_data():
     sheet_url = "https://docs.google.com/spreadsheets/d/1Zr3YUCUXFwZIRRSGIBnnW60dji1pcnda1VHwZ6HXcYQ/edit?usp=sharing"
     doc = client.open_by_url(sheet_url)
     
-    # MÉDICOS
     datos_medicos = doc.worksheet('MEDICOS').get_all_values()
     idx_med = next(i for i, row in enumerate(datos_medicos) if 'NOMBRE' in row)
     df_medicos = pd.DataFrame(datos_medicos[idx_med+1:], columns=datos_medicos[idx_med])
@@ -74,18 +72,14 @@ def load_data():
     df_medicos['lat'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[0])
     df_medicos['lon'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[1])
 
-    # FACTURACIÓN
     datos_fact = doc.worksheet('FACTURACION').get_all_values()
     idx_fac = next(i for i, row in enumerate(datos_fact) if 'NOMBRE' in row)
     df_fact = pd.DataFrame(datos_fact[idx_fac+1:], columns=datos_fact[idx_fac])
     df_fact = df_fact[df_fact['NOMBRE'] != ""]
     
-    # Limpieza de Cifras
     for col in df_fact.columns:
         if 'Monto' in col or 'Inversión' in col or 'INVERSIÓN' in col.upper():
-            texto_limpio = df_fact[col].astype(str).str.replace('$', '', regex=False)
-            texto_limpio = texto_limpio.str.replace('.', '', regex=False) 
-            texto_limpio = texto_limpio.str.replace(',', '.', regex=False) 
+            texto_limpio = df_fact[col].astype(str).str.replace('$', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False) 
             df_fact[col] = pd.to_numeric(texto_limpio, errors='coerce').fillna(0)
         elif 'Cantidad' in col:
             df_fact[col] = pd.to_numeric(df_fact[col], errors='coerce').fillna(0)
@@ -121,15 +115,11 @@ else:
 # ==========================================
 # 4. CÁLCULO DE KPIs Y PORCENTAJES
 # ==========================================
-monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
+monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 
-ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
 pruebas_global = df_fact[[c for c in cant_meses if c in df_fact.columns]].sum().sum()
-
-ingreso_total = df_fact_filtrado[[c for c in monto_meses if c in df_fact_filtrado.columns]].sum().sum()
 pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
-
 porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
 # ==========================================
@@ -139,7 +129,6 @@ st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempe�
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    # NUEVA MÉTRICA: Cuota de Pruebas
     st.metric("Participación de Pruebas (%)", f"{porcentaje_pruebas:.2f}%")
 with col2:
     st.metric("Total de Pruebas", int(pruebas_totales))
@@ -160,78 +149,63 @@ tab1, tab2, tab3 = st.tabs(["🌎 Visión General", "🧬 Análisis de Pruebas",
 # --- PESTAÑA 1: VISIÓN GENERAL ---
 with tab1:
     st.markdown("<br>", unsafe_allow_html=True)
-    col_gauge1, col_gauge2 = st.columns(2)
     
-    with col_gauge1:
-        fig_g1 = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = pruebas_totales,
-            title = {'text': "Meta de Pruebas (Objetivo: 500)", 'font': {'color': '#5C95A6', 'size': 18}},
-            gauge = {'axis': {'range': [None, 500]}, 'bar': {'color': "#5C95A6"}, 'bgcolor': "#E5E5E5"}
-        ))
-        fig_g1.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
-        st.plotly_chart(fig_g1, use_container_width=True)
-        
-    with col_gauge2:
-        # Velocímetro adaptado a la Cuota de Pruebas (0% a 100%)
-        fig_g2 = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = porcentaje_pruebas,
-            number = {'suffix': "%", 'valueformat': '.2f'},
-            title = {'text': "Participación Global de Pruebas", 'font': {'color': '#87A98A', 'size': 18}},
-            gauge = {'axis': {'range': [None, 100]}, 'bar': {'color': "#87A98A"}, 'bgcolor': "#E5E5E5"}
-        ))
-        fig_g2.update_layout(height=300, margin=dict(l=30, r=30, t=50, b=30))
-        st.plotly_chart(fig_g2, use_container_width=True)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
-    
+    # RENGLÓN 1: Gráfica de Líneas Original y Mapa
     colA, colB = st.columns([2, 1])
+    
     with colA:
-        st.subheader("📊 Distribución Mensual por Tipo de Prueba")
-        # Generar DataFrame para gráfico de barras apiladas
-        meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-        meses_cortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-        datos_barras = []
-        
-        for idx_m, mes in enumerate(meses_completos):
-            if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
-                temp = df_fact_filtrado[[f'Producto {mes}', f'Cantidad {mes}']].copy()
-                temp.columns = ['Prueba', 'Cantidad']
-                temp['Mes'] = meses_cortos[idx_m]
-                datos_barras.append(temp)
-                
-        if datos_barras:
-            df_barras = pd.concat(datos_barras).dropna()
-            df_barras['Prueba'] = df_barras['Prueba'].astype(str).str.strip()
-            df_barras = df_barras[(df_barras['Prueba'] != '0') & (df_barras['Prueba'] != '')]
-            df_barras = df_barras.groupby(['Mes', 'Prueba'])['Cantidad'].sum().reset_index()
-            
-            # Ordenar meses cronológicamente
-            df_barras['Mes'] = pd.Categorical(df_barras['Mes'], categories=meses_cortos, ordered=True)
-            df_barras = df_barras.sort_values('Mes')
-            
-            colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5', '#4A7A8A', '#729176']
-            fig_bar = px.bar(df_barras, x='Mes', y='Cantidad', color='Prueba', template="plotly_white", color_discrete_sequence=colores_marca)
-            fig_bar.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas")
-            st.plotly_chart(fig_bar, use_container_width=True)
-        else:
-            st.info("No hay datos suficientes para graficar.")
+        st.subheader("📈 Evolución Mensual")
+        ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
+        meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+        df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
+        fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_white", markers=True, line_shape="spline")
+        fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
+        st.plotly_chart(fig_line, use_container_width=True)
 
     with colB:
         st.subheader("📍 Cobertura Territorial")
-        # Mapa Avanzado con colores por territorio
         if not df_med_filtrado.empty:
             df_mapa = df_med_filtrado[['NOMBRE', 'TERRITORIO', 'lat', 'lon']].copy()
-            df_mapa['Pruebas Asignadas'] = 10 # Tamaño base para burbujas
+            df_mapa['Tamaño_Estado'] = 50 # Burbuja gigante para simular coloreo del estado
             
-            fig_map = px.scatter_mapbox(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Pruebas Asignadas",
-                                        hover_name="TERRITORIO", hover_data={"lat":False, "lon":False, "Pruebas Asignadas":False},
-                                        color_discrete_sequence=px.colors.qualitative.Prism, size_max=15, zoom=4)
+            fig_map = px.scatter_mapbox(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Tamaño_Estado",
+                                        hover_name="TERRITORIO", hover_data={"lat":False, "lon":False, "Tamaño_Estado":False},
+                                        color_discrete_sequence=px.colors.qualitative.Prism, size_max=40, zoom=4.5)
             fig_map.update_layout(mapbox_style="carto-positron", margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False)
             st.plotly_chart(fig_map, use_container_width=True)
         else:
             st.map(df_med_filtrado)
+            
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # RENGLÓN 2: Histograma de Pruebas Apiladas
+    st.subheader("📊 Distribución Mensual por Tipo de Prueba")
+    meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    meses_cortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    datos_barras = []
+    
+    for idx_m, mes in enumerate(meses_completos):
+        if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
+            temp = df_fact_filtrado[[f'Producto {mes}', f'Cantidad {mes}']].copy()
+            temp.columns = ['Prueba', 'Cantidad']
+            temp['Mes'] = meses_cortos[idx_m]
+            datos_barras.append(temp)
+            
+    if datos_barras:
+        df_barras = pd.concat(datos_barras).dropna()
+        df_barras['Prueba'] = df_barras['Prueba'].astype(str).str.strip()
+        df_barras = df_barras[(df_barras['Prueba'] != '0') & (df_barras['Prueba'] != '')]
+        df_barras = df_barras.groupby(['Mes', 'Prueba'])['Cantidad'].sum().reset_index()
+        
+        df_barras['Mes'] = pd.Categorical(df_barras['Mes'], categories=meses_cortos, ordered=True)
+        df_barras = df_barras.sort_values('Mes')
+        
+        colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5', '#4A7A8A', '#729176']
+        fig_bar = px.bar(df_barras, x='Mes', y='Cantidad', color='Prueba', template="plotly_white", color_discrete_sequence=colores_marca)
+        fig_bar.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas")
+        st.plotly_chart(fig_bar, use_container_width=True)
+    else:
+        st.info("No hay datos suficientes para graficar.")
 
 # --- PESTAÑA 2: MIX DE PRUEBAS ---
 with tab2:
@@ -274,6 +248,8 @@ with tab3:
     st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
     
     df_ranking = []
+    ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
+    
     for index, row in df_fact_filtrado.iterrows():
         nombre = row['NOMBRE']
         ingresos_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in monto_meses if c in df_fact.columns)
