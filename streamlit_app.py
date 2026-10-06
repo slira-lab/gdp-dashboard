@@ -166,12 +166,16 @@ with tab1:
         st.subheader("📍 Cobertura Territorial")
         if not df_med_filtrado.empty:
             df_mapa = df_med_filtrado[['NOMBRE', 'TERRITORIO', 'lat', 'lon']].copy()
-            df_mapa['Tamaño_Estado'] = 50 # Burbuja gigante para simular coloreo del estado
+            df_mapa['Tamaño_Estado'] = 15 # Tamaño de la burbuja
             
-            fig_map = px.scatter_mapbox(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Tamaño_Estado",
-                                        hover_name="TERRITORIO", hover_data={"lat":False, "lon":False, "Tamaño_Estado":False},
-                                        color_discrete_sequence=px.colors.qualitative.Prism, size_max=40, zoom=4.5)
-            fig_map.update_layout(mapbox_style="carto-positron", margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False)
+            # NUEVO MOTOR DE MAPA: 100% estable y nativo
+            fig_map = px.scatter_geo(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Tamaño_Estado",
+                                     hover_name="TERRITORIO", color_discrete_sequence=px.colors.qualitative.Prism)
+            # Centrar automáticamente en México
+            fig_map.update_geos(fitbounds="locations", showcountries=True, countrycolor="#CCCCCC", 
+                                showsubunits=True, subunitcolor="#EEEEEE", bgcolor='rgba(0,0,0,0)')
+            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False, paper_bgcolor='rgba(0,0,0,0)')
+            
             st.plotly_chart(fig_map, use_container_width=True)
         else:
             st.map(df_med_filtrado)
@@ -264,16 +268,3 @@ with tab3:
         max_pruebas = int(df_ranking['Pruebas'].max())
         
         st.dataframe(
-            df_ranking,
-            column_config={
-                "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
-                "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
-                "% de Pruebas": st.column_config.ProgressColumn("Cuota de Mercado (%)", format="%.2f%%", min_value=0, max_value=100),
-                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%.2f")
-            },
-            hide_index=True,
-            column_order=["Médico", "Pruebas", "% de Pruebas", "Beneficio ($)"],
-            use_container_width=True
-        )
-    else:
-        st.info("Sin datos para generar ranking.")
