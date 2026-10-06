@@ -1,4 +1,3 @@
-Python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -302,6 +301,3 @@ with tab3:
         )
     else:
         st.info("Sin datos para generar ranking.")
-# --- PESTAÑA 2: MIX DE PRUEBAS ---
-with tab2:
-    st
