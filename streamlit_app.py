@@ -1,3 +1,4 @@
+Python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -233,6 +234,74 @@ with tab1:
         else:
             st.map(df_med_filtrado)
 
+# --- PESTAÑA 2: MIX DE PRUEBAS ---
+with tab2:
+    st.subheader("Porcentaje de Participación por Prueba")
+    lista_df_prod = []
+    for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+        if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
+            temp = df_fact_filtrado[[f'Producto {mes}', f'Cantidad {mes}']].copy()
+            temp.columns = ['Producto', 'Cantidad']
+            lista_df_prod.append(temp)
+            
+    df_productos = pd.DataFrame()
+    if lista_df_prod:
+        df_productos = pd.concat(lista_df_prod).dropna()
+        df_productos['Producto'] = df_productos['Producto'].astype(str).str.strip()
+        df_productos = df_productos[(df_productos['Producto'] != '0') & (df_productos['Producto'] != '')]
+        df_productos = df_productos.groupby('Producto')['Cantidad'].sum().reset_index()
+        df_productos = df_productos[df_productos['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
+        total_p = df_productos['Cantidad'].sum()
+        df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_p) * 100 if total_p > 0 else 0
+
+    if not df_productos.empty:
+        top_pruebas = df_productos.head(4)
+        cols_porcentaje = st.columns(len(top_pruebas))
+        for idx, row in enumerate(top_pruebas.itertuples()):
+            with cols_porcentaje[idx]:
+                st.metric(label=f"🧬 {row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} ventas", delta_color="off")
+                st.progress(int(row.Porcentaje))
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5']
+        fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_white", color_discrete_sequence=colores_marca)
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig_pie, use_container_width=True)
+    else:
+        st.info("No hay ventas registradas para generar el desglose.")
+
+# --- PESTAÑA 3: RANKING Y BENEFICIOS ---
+with tab3:
+    st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
+    
+    df_ranking = []
+    for index, row in df_fact_filtrado.iterrows():
+        nombre = row['NOMBRE']
+        ingresos_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in monto_meses if c in df_fact.columns)
+        pruebas_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in cant_meses if c in df_fact.columns)
+        inversion = row['Inversión Total'] if 'Inversión Total' in df_fact.columns else 0
+        df_ranking.append({'Médico': nombre, 'Pruebas': pruebas_medico, 'Ingreso ($)': ingresos_medico, 'Beneficio ($)': pd.to_numeric(inversion, errors='coerce')})
+        
+    df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Pruebas', ascending=False)
+    
+    if not df_ranking.empty:
+        df_ranking['% de Pruebas'] = (df_ranking['Pruebas'] / pruebas_global) * 100 if pruebas_global > 0 else 0
+        max_pruebas = int(df_ranking['Pruebas'].max())
+        
+        st.dataframe(
+            df_ranking,
+            column_config={
+                "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
+                "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
+                "% de Pruebas": st.column_config.ProgressColumn("Cuota de Mercado (%)", format="%.2f%%", min_value=0, max_value=100),
+                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%.2f")
+            },
+            hide_index=True,
+            column_order=["Médico", "Pruebas", "% de Pruebas", "Beneficio ($)"],
+            use_container_width=True
+        )
+    else:
+        st.info("Sin datos para generar ranking.")
 # --- PESTAÑA 2: MIX DE PRUEBAS ---
 with tab2:
     st
