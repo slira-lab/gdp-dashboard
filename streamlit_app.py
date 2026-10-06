@@ -83,24 +83,9 @@ def load_data():
     
     def obtener_estado(territorio):
         t = str(territorio).strip()
-        return mapa_estados.get(t, t) # Si no está en el diccionario, usa el nombre directo
+        return mapa_estados.get(t, t)
         
     df_medicos['Estado_oficial'] = df_medicos['TERRITORIO'].apply(obtener_estado)
-    
-    # COORDENADAS COMO RESPALDO (FALLBACK)
-    coords = {
-        'Guadalajara': [20.6596, -103.3496], 'Chihuahua': [28.6329, -106.0691],
-        'CDMX Norte': [19.4326, -99.1332], 'CDMX Sur': [19.3000, -99.1500],
-        'CDMX Centro': [19.4326, -99.1332], 'CDMX': [19.4326, -99.1332],
-        'Monterrey': [25.6866, -100.3161], 'Mérida, México': [20.9673, -89.6242],
-        'Cancun': [21.1619, -86.8515], 'Culiacan': [24.8032, -107.3938],
-        'Tampico': [22.2158, -97.8584], 'Los Cabos': [22.8905, -109.9167],
-        'Aguascalientes': [21.8853, -102.2916], 'Nuevo Leon': [25.6866, -100.3161],
-        'Querétaro': [20.5881, -100.3899], 'Mazatlan': [23.2494, -106.4111],
-        'Veracruz': [19.1738, -96.1342], 'Cd. Juárez': [31.7333, -106.4833]
-    }
-    df_medicos['lat'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[0])
-    df_medicos['lon'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[1])
 
     # DATOS FACTURACIÓN
     datos_fact = doc.worksheet('FACTURACION').get_all_values()
@@ -117,7 +102,7 @@ def load_data():
             
     return df_medicos, df_fact
 
-# DESCARGA DEL MAPA GEOJSON OFICIAL
+# DESCARGA DEL MAPA GEOJSON OFICIAL (SILUETA DE MÉXICO)
 @st.cache_data(ttl=3600)
 def get_geojson():
     url = "https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json"
@@ -205,28 +190,56 @@ with tab1:
 
     with colB:
         st.subheader("📍 Cobertura Territorial")
-        if not df_med_filtrado.empty:
-            # MAPA COROPLÉTICO (Rellena todo el estado)
-            if mexico_geojson:
-                df_mapa = df_med_filtrado.groupby('Estado_oficial').size().reset_index(name='Doctores')
+        
+        if not df_med_filtrado.empty and mexico_geojson:
+            try:
+                # 1. Extraemos los nombres oficiales del mapa
+                todos_los_estados = [f['properties']['name'] for f in mexico_geojson['features']]
+                # 2. Adaptamos CDMX a como lo llame el mapa (Ej. "Distrito Federal")
+                nombre_cdmx = next((n for n in todos_los_estados if 'Distrito' in n or 'Ciudad' in n or 'CDMX' in n), 'Ciudad de México')
+                
+                estado_tmp = df_med_filtrado['Estado_oficial'].copy()
+                estado_tmp = estado_tmp.replace(['Ciudad de México', 'Distrito Federal'], nombre_cdmx)
+                
+                df_agrupado = estado_tmp.value_counts().reset_index()
+                df_agrupado.columns = ['Estado_oficial', 'Doctores']
+                
+                # 3. EL TRUCO: Creamos una base con TODOS los 32 estados en 0 para que México siempre se vea completo
+                df_base = pd.DataFrame({'Estado_oficial': todos_los_estados, 'Doctores': 0})
+                df_mapa = pd.concat([df_base, df_agrupado]).groupby('Estado_oficial', as_index=False).sum()
+                
+                max_docs = df_mapa['Doctores'].max()
+                if max_docs == 0: max_docs = 1
+                
+                # 4. Creación del mapa coroplético
                 fig_map = px.choropleth(
                     df_mapa, 
                     geojson=mexico_geojson, 
                     locations='Estado_oficial', 
                     featureidkey='properties.name', 
                     color='Doctores',
-                    color_continuous_scale=["#87A98A", "#2EC4B6"]
+                    # #1E1E1E es casi invisible (estado apagado), #2EC4B6 es encendido
+                    color_continuous_scale=["#2a2a2a", "#5C95A6", "#2EC4B6"],
+                    range_color=(0, max_docs)
                 )
-                fig_map.update_geos(fitbounds="locations", visible=False)
-            else:
-                # PLAN B: Si el servidor del mapa falla, usa burbujas en lugar de un error.
-                df_mapa = df_med_filtrado[['NOMBRE', 'TERRITORIO', 'lat', 'lon']].copy()
-                df_mapa['Tamano'] = 15
-                fig_map = px.scatter_geo(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Tamano", color_discrete_sequence=px.colors.qualitative.Prism)
-                fig_map.update_geos(fitbounds="locations", showcountries=True, countrycolor="#CCCCCC")
                 
-            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
-            st.plotly_chart(fig_map, use_container_width=True)
+                # Ocultar la tierra de fondo y ajustar a los bordes de los estados
+                fig_map.update_geos(fitbounds="locations", visible=False, bgcolor="rgba(0,0,0,0)")
+                
+                # 5. ELIMINAR EL FONDO BLANCO HACIÉNDOLO 100% TRANSPARENTE
+                fig_map.update_layout(
+                    margin={"r":0,"t":0,"l":0,"b":0},
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    geo=dict(bgcolor='rgba(0,0,0,0)'), # Transparencia profunda
+                    coloraxis_showscale=False
+                )
+                # Delineado sutil de los estados
+                fig_map.update_traces(marker_line_width=1, marker_line_color='#444444')
+                
+                st.plotly_chart(fig_map, use_container_width=True)
+            except Exception as e:
+                st.info("Configurando vista territorial...")
         else:
             st.info("Sin datos para mostrar en el mapa.")
             
