@@ -124,7 +124,7 @@ pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtra
 porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
 # ==========================================
-# 5. DASHBOARD - CABECERA PRINCIPAL (LIMPIA)
+# 5. DASHBOARD - CABECERA PRINCIPAL
 # ==========================================
 st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
 
@@ -179,6 +179,7 @@ with tab1:
             
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # --- GRÁFICA LIMPIA ESTILO "MODERNO" ---
     st.subheader("📊 Distribución Mensual por Tipo de Prueba")
     meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     meses_cortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -197,11 +198,20 @@ with tab1:
         df_barras = df_barras[(df_barras['Prueba'] != '0') & (df_barras['Prueba'] != '')]
         df_barras = df_barras.groupby(['Mes', 'Prueba'])['Cantidad'].sum().reset_index()
         
-        colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5', '#4A7A8A', '#729176', '#E2A973', '#9D85A0', '#4A5B69']
-        fig_line_prod = px.line(df_barras, x='Mes', y='Cantidad', color='Prueba', text='Cantidad', markers=True, template="plotly_white", color_discrete_sequence=colores_marca, line_shape="spline")
+        # EL TRUCO DE MAGIA: Rellenar con ceros los meses donde no hay ventas para que la línea no haga bucles
+        df_pivot = df_barras.pivot(index='Mes', columns='Prueba', values='Cantidad').fillna(0)
+        df_pivot = df_pivot.reindex(meses_cortos).fillna(0) # Forzar el orden del calendario
+        df_barras_clean = df_pivot.reset_index().melt(id_vars='Mes', value_name='Cantidad')
         
-        fig_line_prod.update_traces(textposition="top center", textfont_size=13)
+        # Paleta de colores moderna inspirada en tu imagen (Turquesa, Naranja, Verdes y Azules)
+        colores_marca = ['#2EC4B6', '#FF9F1C', '#5C95A6', '#87A98A', '#E2A973', '#4A7A8A', '#999999', '#A3C1CC']
+        
+        fig_line_prod = px.line(df_barras_clean, x='Mes', y='Cantidad', color='Prueba', markers=True, template="plotly_white", color_discrete_sequence=colores_marca)
+        
+        # Hacer las líneas gruesas y quitar los números amontonados
+        fig_line_prod.update_traces(line=dict(width=4), marker=dict(size=8))
         fig_line_prod.update_xaxes(categoryorder='array', categoryarray=meses_cortos)
+        
         fig_line_prod.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas", hovermode="x unified")
         st.plotly_chart(fig_line_prod, use_container_width=True)
     else:
@@ -228,7 +238,6 @@ with tab2:
         df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_p) * 100 if total_p > 0 else 0
 
     if not df_productos.empty:
-        # AQUÍ REGRESAN LOS RECUADROS A SU PESTAÑA ORIGINAL
         top_pruebas = df_productos.head(4)
         cols_porcentaje = st.columns(len(top_pruebas))
         for idx, row in enumerate(top_pruebas.itertuples()):
@@ -249,6 +258,7 @@ with tab3:
     st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
     
     df_ranking = []
+    ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
     
     for index, row in df_fact_filtrado.iterrows():
         nombre = row['NOMBRE']
