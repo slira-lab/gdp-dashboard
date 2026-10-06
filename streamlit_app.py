@@ -28,10 +28,18 @@ st.markdown("""
         padding: 15px 20px;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
     }
+    
+    /* CORRECCIÓN PARA TEXTOS LARGOS EN INDICADORES */
     [data-testid="stMetricValue"] {
-        font-size: 1.8rem !important;
+        font-size: 1.5rem !important; /* Ligeramente más pequeño para que quepa mejor */
         color: #333333 !important;
+        white-space: normal !important; /* Permite que el texto baje al siguiente renglón */
+        line-height: 1.2 !important; /* Ajusta el espacio entre renglones */
     }
+    [data-testid="stMetricValue"] > div {
+        white-space: normal !important; /* Fuerza a Streamlit a no usar puntos suspensivos */
+    }
+    
     [data-testid="stMetricLabel"] {
         font-size: 1rem !important;
         color: #666666 !important;
@@ -179,7 +187,6 @@ with tab1:
             
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- GRÁFICA LIMPIA ESTILO "MODERNO" ---
     st.subheader("📊 Distribución Mensual por Tipo de Prueba")
     meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     meses_cortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -198,20 +205,15 @@ with tab1:
         df_barras = df_barras[(df_barras['Prueba'] != '0') & (df_barras['Prueba'] != '')]
         df_barras = df_barras.groupby(['Mes', 'Prueba'])['Cantidad'].sum().reset_index()
         
-        # EL TRUCO DE MAGIA: Rellenar con ceros los meses donde no hay ventas para que la línea no haga bucles
         df_pivot = df_barras.pivot(index='Mes', columns='Prueba', values='Cantidad').fillna(0)
-        df_pivot = df_pivot.reindex(meses_cortos).fillna(0) # Forzar el orden del calendario
+        df_pivot = df_pivot.reindex(meses_cortos).fillna(0) 
         df_barras_clean = df_pivot.reset_index().melt(id_vars='Mes', value_name='Cantidad')
         
-        # Paleta de colores moderna inspirada en tu imagen (Turquesa, Naranja, Verdes y Azules)
         colores_marca = ['#2EC4B6', '#FF9F1C', '#5C95A6', '#87A98A', '#E2A973', '#4A7A8A', '#999999', '#A3C1CC']
-        
         fig_line_prod = px.line(df_barras_clean, x='Mes', y='Cantidad', color='Prueba', markers=True, template="plotly_white", color_discrete_sequence=colores_marca)
         
-        # Hacer las líneas gruesas y quitar los números amontonados
         fig_line_prod.update_traces(line=dict(width=4), marker=dict(size=8))
         fig_line_prod.update_xaxes(categoryorder='array', categoryarray=meses_cortos)
-        
         fig_line_prod.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas", hovermode="x unified")
         st.plotly_chart(fig_line_prod, use_container_width=True)
     else:
