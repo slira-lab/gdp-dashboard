@@ -154,7 +154,7 @@ with tab1:
     colA, colB = st.columns([2, 1])
     
     with colA:
-        st.subheader("📈 Evolución Mensual")
+        st.subheader("📈 Evolución Global de Pruebas")
         ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
         meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
         df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
@@ -179,6 +179,7 @@ with tab1:
             
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # --- NUEVA GRÁFICA DE LÍNEAS POR TIPO DE PRUEBA ---
     st.subheader("📊 Distribución Mensual por Tipo de Prueba")
     meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     meses_cortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -197,13 +198,15 @@ with tab1:
         df_barras = df_barras[(df_barras['Prueba'] != '0') & (df_barras['Prueba'] != '')]
         df_barras = df_barras.groupby(['Mes', 'Prueba'])['Cantidad'].sum().reset_index()
         
-        df_barras['Mes'] = pd.Categorical(df_barras['Mes'], categories=meses_cortos, ordered=True)
-        df_barras = df_barras.sort_values('Mes')
+        # AQUÍ ESTÁ EL CAMBIO A GRÁFICO DE LÍNEAS MÚLTIPLES
+        colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5', '#4A7A8A', '#729176', '#E2A973', '#9D85A0', '#4A5B69']
+        fig_line_prod = px.line(df_barras, x='Mes', y='Cantidad', color='Prueba', markers=True, template="plotly_white", color_discrete_sequence=colores_marca, line_shape="spline")
         
-        colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5', '#4A7A8A', '#729176']
-        fig_bar = px.bar(df_barras, x='Mes', y='Cantidad', color='Prueba', template="plotly_white", color_discrete_sequence=colores_marca)
-        fig_bar.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas")
-        st.plotly_chart(fig_bar, use_container_width=True)
+        # FORZAR ORDEN CRONOLÓGICO PARA QUE NO SE REVIELVA COMO EN LA FOTO
+        fig_line_prod.update_xaxes(categoryorder='array', categoryarray=meses_cortos)
+        
+        fig_line_prod.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas")
+        st.plotly_chart(fig_line_prod, use_container_width=True)
     else:
         st.info("No hay datos suficientes para graficar.")
 
