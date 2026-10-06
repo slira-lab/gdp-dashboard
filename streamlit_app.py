@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import requests
 
 # ==========================================
 # 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO
@@ -28,18 +29,15 @@ st.markdown("""
         padding: 15px 20px;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
     }
-    
-    /* CORRECCIÓN PARA TEXTOS LARGOS EN INDICADORES */
     [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important; /* Ligeramente más pequeño para que quepa mejor */
+        font-size: 1.5rem !important;
         color: #333333 !important;
-        white-space: normal !important; /* Permite que el texto baje al siguiente renglón */
-        line-height: 1.2 !important; /* Ajusta el espacio entre renglones */
+        white-space: normal !important;
+        line-height: 1.2 !important;
     }
     [data-testid="stMetricValue"] > div {
-        white-space: normal !important; /* Fuerza a Streamlit a no usar puntos suspensivos */
+        white-space: normal !important;
     }
-    
     [data-testid="stMetricLabel"] {
         font-size: 1rem !important;
         color: #666666 !important;
@@ -50,7 +48,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. CONEXIÓN A DATOS Y CORRECCIÓN DE MONEDA
+# 2. CONEXIÓN A DATOS, MONEDA Y MAPAS
 # ==========================================
 @st.cache_data(ttl=600)
 def load_data():
@@ -67,19 +65,19 @@ def load_data():
     df_medicos = pd.DataFrame(datos_medicos[idx_med+1:], columns=datos_medicos[idx_med])
     df_medicos = df_medicos[df_medicos['NOMBRE'] != ""]
     
-    coords = {
-        'Guadalajara': [20.6596, -103.3496], 'Chihuahua': [28.6329, -106.0691],
-        'CDMX Norte': [19.4326, -99.1332], 'CDMX Sur': [19.3000, -99.1500],
-        'CDMX Centro': [19.4326, -99.1332], 'CDMX': [19.4326, -99.1332],
-        'Monterrey': [25.6866, -100.3161], 'Mérida, México': [20.9673, -89.6242],
-        'Cancun': [21.1619, -86.8515], 'Culiacan': [24.8032, -107.3938],
-        'Tampico': [22.2158, -97.8584], 'Los Cabos': [22.8905, -109.9167],
-        'Aguascalientes': [21.8853, -102.2916], 'Nuevo Leon': [25.6866, -100.3161],
-        'Querétaro': [20.5881, -100.3899], 'Mazatlan': [23.2494, -106.4111],
-        'Veracruz': [19.1738, -96.1342], 'Cd. Juárez': [31.7333, -106.4833]
+    # TRADUCTOR DE TERRITORIOS A ESTADOS OFICIALES PARA EL MAPA
+    mapa_estados = {
+        'Guadalajara': 'Jalisco', 'Chihuahua': 'Chihuahua',
+        'CDMX Norte': 'Ciudad de México', 'CDMX Sur': 'Ciudad de México',
+        'CDMX Centro': 'Ciudad de México', 'CDMX': 'Ciudad de México',
+        'Monterrey': 'Nuevo León', 'Mérida, México': 'Yucatán',
+        'Cancun': 'Quintana Roo', 'Culiacan': 'Sinaloa',
+        'Tampico': 'Tamaulipas', 'Los Cabos': 'Baja California Sur',
+        'Aguascalientes': 'Aguascalientes', 'Nuevo Leon': 'Nuevo León',
+        'Querétaro': 'Querétaro', 'Mazatlan': 'Sinaloa',
+        'Veracruz': 'Veracruz', 'Cd. Juárez': 'Chihuahua'
     }
-    df_medicos['lat'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[0])
-    df_medicos['lon'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[1])
+    df_medicos['Estado_oficial'] = df_medicos['TERRITORIO'].map(lambda x: mapa_estados.get(x, 'Desconocido'))
 
     datos_fact = doc.worksheet('FACTURACION').get_all_values()
     idx_fac = next(i for i, row in enumerate(datos_fact) if 'NOMBRE' in row)
@@ -95,8 +93,19 @@ def load_data():
             
     return df_medicos, df_fact
 
+# Cargar GeoJSON de México para pintar fronteras
+@st.cache_data
+def get_geojson():
+    url = "https://raw.githubusercontent.com/angelicali/mexico-geojson/master/mexico.json"
+    try:
+        r = requests.get(url)
+        return r.json()
+    except:
+        return None
+
 try:
     df_medicos, df_fact = load_data()
+    mexico_geojson = get_geojson()
 except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
     st.stop()
@@ -172,18 +181,25 @@ with tab1:
 
     with colB:
         st.subheader("📍 Cobertura Territorial")
-        if not df_med_filtrado.empty:
-            df_mapa = df_med_filtrado[['NOMBRE', 'TERRITORIO', 'lat', 'lon']].copy()
-            df_mapa['Tamaño_Estado'] = 15
+        if not df_med_filtrado.empty and mexico_geojson:
+            # Agrupar médicos por estado para pintar el mapa
+            df_mapa = df_med_filtrado.groupby('Estado_oficial').size().reset_index(name='Conteo')
             
-            fig_map = px.scatter_geo(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Tamaño_Estado",
-                                     hover_name="TERRITORIO", color_discrete_sequence=px.colors.qualitative.Prism)
-            fig_map.update_geos(fitbounds="locations", showcountries=True, countrycolor="#CCCCCC", 
-                                showsubunits=True, subunitcolor="#EEEEEE", bgcolor='rgba(0,0,0,0)')
-            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False, paper_bgcolor='rgba(0,0,0,0)')
+            fig_map = px.choropleth(
+                df_mapa, 
+                geojson=mexico_geojson, 
+                locations='Estado_oficial', 
+                featureidkey='properties.name', 
+                color='Conteo',
+                color_continuous_scale="Teal",
+                scope="north america"
+            )
+            fig_map.update_geos(fitbounds="locations", visible=False)
+            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+            
             st.plotly_chart(fig_map, use_container_width=True)
         else:
-            st.map(df_med_filtrado)
+            st.info("Sin datos de territorio para mostrar mapa.")
             
     st.markdown("<hr>", unsafe_allow_html=True)
 
