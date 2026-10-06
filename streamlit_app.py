@@ -60,25 +60,49 @@ def load_data():
     sheet_url = "https://docs.google.com/spreadsheets/d/1Zr3YUCUXFwZIRRSGIBnnW60dji1pcnda1VHwZ6HXcYQ/edit?usp=sharing"
     doc = client.open_by_url(sheet_url)
     
+    # DATOS MEDICOS
     datos_medicos = doc.worksheet('MEDICOS').get_all_values()
     idx_med = next(i for i, row in enumerate(datos_medicos) if 'NOMBRE' in row)
     df_medicos = pd.DataFrame(datos_medicos[idx_med+1:], columns=datos_medicos[idx_med])
     df_medicos = df_medicos[df_medicos['NOMBRE'] != ""]
     
-    # TRADUCTOR DE TERRITORIOS A ESTADOS OFICIALES PARA EL MAPA
+    # DICCIONARIO INTELIGENTE: TRADUCE TU TERRITORIO AL ESTADO OFICIAL PARA RELLENAR EL MAPA
     mapa_estados = {
-        'Guadalajara': 'Jalisco', 'Chihuahua': 'Chihuahua',
+        'Guadalajara': 'Jalisco', 'Chihuahua': 'Chihuahua', 'Cd. Juárez': 'Chihuahua',
         'CDMX Norte': 'Ciudad de México', 'CDMX Sur': 'Ciudad de México',
         'CDMX Centro': 'Ciudad de México', 'CDMX': 'Ciudad de México',
-        'Monterrey': 'Nuevo León', 'Mérida, México': 'Yucatán',
-        'Cancun': 'Quintana Roo', 'Culiacan': 'Sinaloa',
+        'Monterrey': 'Nuevo León', 'Nuevo Leon': 'Nuevo León', 
+        'Mérida, México': 'Yucatán', 'Mérida': 'Yucatán',
+        'Cancun': 'Quintana Roo', 'Culiacan': 'Sinaloa', 'Mazatlan': 'Sinaloa',
         'Tampico': 'Tamaulipas', 'Los Cabos': 'Baja California Sur',
-        'Aguascalientes': 'Aguascalientes', 'Nuevo Leon': 'Nuevo León',
-        'Querétaro': 'Querétaro', 'Mazatlan': 'Sinaloa',
-        'Veracruz': 'Veracruz', 'Cd. Juárez': 'Chihuahua'
+        'Aguascalientes': 'Aguascalientes', 'Querétaro': 'Querétaro',
+        'Veracruz': 'Veracruz', 'Puebla': 'Puebla', 'Leon': 'Guanajuato',
+        'Tijuana': 'Baja California', 'Hermosillo': 'Sonora', 'Oaxaca': 'Oaxaca',
+        'Morelia': 'Michoacán', 'Toluca': 'México', 'Cuernavaca': 'Morelos'
     }
-    df_medicos['Estado_oficial'] = df_medicos['TERRITORIO'].map(lambda x: mapa_estados.get(x, 'Desconocido'))
+    
+    def obtener_estado(territorio):
+        t = str(territorio).strip()
+        return mapa_estados.get(t, t) # Si no está en el diccionario, usa el nombre directo
+        
+    df_medicos['Estado_oficial'] = df_medicos['TERRITORIO'].apply(obtener_estado)
+    
+    # COORDENADAS COMO RESPALDO (FALLBACK)
+    coords = {
+        'Guadalajara': [20.6596, -103.3496], 'Chihuahua': [28.6329, -106.0691],
+        'CDMX Norte': [19.4326, -99.1332], 'CDMX Sur': [19.3000, -99.1500],
+        'CDMX Centro': [19.4326, -99.1332], 'CDMX': [19.4326, -99.1332],
+        'Monterrey': [25.6866, -100.3161], 'Mérida, México': [20.9673, -89.6242],
+        'Cancun': [21.1619, -86.8515], 'Culiacan': [24.8032, -107.3938],
+        'Tampico': [22.2158, -97.8584], 'Los Cabos': [22.8905, -109.9167],
+        'Aguascalientes': [21.8853, -102.2916], 'Nuevo Leon': [25.6866, -100.3161],
+        'Querétaro': [20.5881, -100.3899], 'Mazatlan': [23.2494, -106.4111],
+        'Veracruz': [19.1738, -96.1342], 'Cd. Juárez': [31.7333, -106.4833]
+    }
+    df_medicos['lat'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[0])
+    df_medicos['lon'] = df_medicos['TERRITORIO'].map(lambda x: coords.get(x, [19.4326, -99.1332])[1])
 
+    # DATOS FACTURACIÓN
     datos_fact = doc.worksheet('FACTURACION').get_all_values()
     idx_fac = next(i for i, row in enumerate(datos_fact) if 'NOMBRE' in row)
     df_fact = pd.DataFrame(datos_fact[idx_fac+1:], columns=datos_fact[idx_fac])
@@ -93,12 +117,12 @@ def load_data():
             
     return df_medicos, df_fact
 
-# Cargar GeoJSON de México para pintar fronteras
-@st.cache_data
+# DESCARGA DEL MAPA GEOJSON OFICIAL
+@st.cache_data(ttl=3600)
 def get_geojson():
-    url = "https://raw.githubusercontent.com/angelicali/mexico-geojson/master/mexico.json"
+    url = "https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json"
     try:
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
         return r.json()
     except:
         return None
@@ -181,25 +205,30 @@ with tab1:
 
     with colB:
         st.subheader("📍 Cobertura Territorial")
-        if not df_med_filtrado.empty and mexico_geojson:
-            # Agrupar médicos por estado para pintar el mapa
-            df_mapa = df_med_filtrado.groupby('Estado_oficial').size().reset_index(name='Conteo')
-            
-            fig_map = px.choropleth(
-                df_mapa, 
-                geojson=mexico_geojson, 
-                locations='Estado_oficial', 
-                featureidkey='properties.name', 
-                color='Conteo',
-                color_continuous_scale="Teal",
-                scope="north america"
-            )
-            fig_map.update_geos(fitbounds="locations", visible=False)
-            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
-            
+        if not df_med_filtrado.empty:
+            # MAPA COROPLÉTICO (Rellena todo el estado)
+            if mexico_geojson:
+                df_mapa = df_med_filtrado.groupby('Estado_oficial').size().reset_index(name='Doctores')
+                fig_map = px.choropleth(
+                    df_mapa, 
+                    geojson=mexico_geojson, 
+                    locations='Estado_oficial', 
+                    featureidkey='properties.name', 
+                    color='Doctores',
+                    color_continuous_scale=["#87A98A", "#2EC4B6"]
+                )
+                fig_map.update_geos(fitbounds="locations", visible=False)
+            else:
+                # PLAN B: Si el servidor del mapa falla, usa burbujas en lugar de un error.
+                df_mapa = df_med_filtrado[['NOMBRE', 'TERRITORIO', 'lat', 'lon']].copy()
+                df_mapa['Tamano'] = 15
+                fig_map = px.scatter_geo(df_mapa, lat="lat", lon="lon", color="TERRITORIO", size="Tamano", color_discrete_sequence=px.colors.qualitative.Prism)
+                fig_map.update_geos(fitbounds="locations", showcountries=True, countrycolor="#CCCCCC")
+                
+            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_map, use_container_width=True)
         else:
-            st.info("Sin datos de territorio para mostrar mapa.")
+            st.info("Sin datos para mostrar en el mapa.")
             
     st.markdown("<hr>", unsafe_allow_html=True)
 
