@@ -179,7 +179,7 @@ with tab1:
             
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # --- NUEVA GRÁFICA DE LÍNEAS POR TIPO DE PRUEBA ---
+    # --- GRÁFICA DE LÍNEAS MÚLTIPLES "ANTI-PÉRDIDAS" ---
     st.subheader("📊 Distribución Mensual por Tipo de Prueba")
     meses_completos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
     meses_cortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -198,14 +198,23 @@ with tab1:
         df_barras = df_barras[(df_barras['Prueba'] != '0') & (df_barras['Prueba'] != '')]
         df_barras = df_barras.groupby(['Mes', 'Prueba'])['Cantidad'].sum().reset_index()
         
-        # AQUÍ ESTÁ EL CAMBIO A GRÁFICO DE LÍNEAS MÚLTIPLES
+        # Paleta de colores para múltiples líneas
         colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5', '#4A7A8A', '#729176', '#E2A973', '#9D85A0', '#4A5B69']
-        fig_line_prod = px.line(df_barras, x='Mes', y='Cantidad', color='Prueba', markers=True, template="plotly_white", color_discrete_sequence=colores_marca, line_shape="spline")
         
-        # FORZAR ORDEN CRONOLÓGICO PARA QUE NO SE REVIELVA COMO EN LA FOTO
+        # Creamos gráfica de líneas y obligamos a que muestre el texto (número) directamente
+        fig_line_prod = px.line(df_barras, x='Mes', y='Cantidad', color='Prueba', text='Cantidad', markers=True, template="plotly_white", color_discrete_sequence=colores_marca, line_shape="spline")
+        
+        # Posicionamos el número arriba del punto y forzamos orden de meses
+        fig_line_prod.update_traces(textposition="top center", textfont_size=13)
         fig_line_prod.update_xaxes(categoryorder='array', categoryarray=meses_cortos)
         
-        fig_line_prod.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas")
+        # hovermode="x unified" dibuja la línea vertical que te muestra TODAS las pruebas de ese mes al instante
+        fig_line_prod.update_layout(
+            legend_title_text='Tipo de Prueba', 
+            xaxis_title="Meses", 
+            yaxis_title="Pruebas Vendidas",
+            hovermode="x unified"
+        )
         st.plotly_chart(fig_line_prod, use_container_width=True)
     else:
         st.info("No hay datos suficientes para graficar.")
