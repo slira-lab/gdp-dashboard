@@ -69,7 +69,7 @@ def load_data():
     df_medicos.columns = df_medicos.columns.astype(str).str.strip()
     df_medicos = df_medicos[df_medicos['NOMBRE'].astype(str).str.strip() != ""]
     
-    mapa_estados = {
+    mapa_estados = { 
         'Guadalajara': 'Jalisco', 'Chihuahua': 'Chihuahua', 'Cd. Juárez': 'Chihuahua',
         'CDMX Norte': 'Ciudad de México', 'CDMX Sur': 'Ciudad de México',
         'CDMX Centro': 'Ciudad de México', 'CDMX': 'Ciudad de México',
