@@ -114,7 +114,7 @@ else:
     df_fact_filtrado = df_fact
 
 # ==========================================
-# 4. PROCESAMIENTO DE DATOS GLOBALES
+# 4. CÁLCULO DE KPIs GLOBALES
 # ==========================================
 cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
@@ -123,30 +123,11 @@ pruebas_global = df_fact[[c for c in cant_meses if c in df_fact.columns]].sum().
 pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
 porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
-# CÁLCULO DE SUBTOTARES POR TIPO DE PRUEBA
-lista_df_prod = []
-for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
-    if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
-        temp = df_fact_filtrado[[f'Producto {mes}', f'Cantidad {mes}']].copy()
-        temp.columns = ['Producto', 'Cantidad']
-        lista_df_prod.append(temp)
-        
-df_productos = pd.DataFrame()
-if lista_df_prod:
-    df_productos = pd.concat(lista_df_prod).dropna()
-    df_productos['Producto'] = df_productos['Producto'].astype(str).str.strip()
-    df_productos = df_productos[(df_productos['Producto'] != '0') & (df_productos['Producto'] != '')]
-    df_productos = df_productos.groupby('Producto')['Cantidad'].sum().reset_index()
-    df_productos = df_productos[df_productos['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
-    total_p = df_productos['Cantidad'].sum()
-    df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_p) * 100 if total_p > 0 else 0
-
 # ==========================================
-# 5. DASHBOARD - CABECERA
+# 5. DASHBOARD - CABECERA PRINCIPAL (LIMPIA)
 # ==========================================
 st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
 
-# --- FILA 1: KPIs GLOBALES ---
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Participación de Pruebas (%)", f"{porcentaje_pruebas:.2f}%")
@@ -160,17 +141,6 @@ with col4:
     st.metric("Especialidad", esp)
 
 st.markdown("<br>", unsafe_allow_html=True)
-
-# --- FILA 2: SUBTOTARES POR PRUEBA (TOP 4) ---
-if not df_productos.empty:
-    st.markdown("<h3 style='color: #5C95A6; font-size: 1.2rem; margin-bottom: 10px;'>🧬 Subtotales por Tipo de Prueba (Top 4)</h3>", unsafe_allow_html=True)
-    top_pruebas = df_productos.head(4)
-    cols_porcentaje = st.columns(len(top_pruebas))
-    for idx, row in enumerate(top_pruebas.itertuples()):
-        with cols_porcentaje[idx]:
-            st.metric(label=f"Prueba: {row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} enviadas", delta_color="off")
-            st.progress(int(row.Porcentaje))
-    st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
 # 6. SISTEMA DE PESTAÑAS (TABS)
@@ -239,8 +209,34 @@ with tab1:
 
 # --- PESTAÑA 2: MIX DE PRUEBAS ---
 with tab2:
-    st.subheader("Resumen General de Mix de Pruebas")
+    st.subheader("Porcentaje de Participación por Prueba")
+    lista_df_prod = []
+    for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+        if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
+            temp = df_fact_filtrado[[f'Producto {mes}', f'Cantidad {mes}']].copy()
+            temp.columns = ['Producto', 'Cantidad']
+            lista_df_prod.append(temp)
+            
+    df_productos = pd.DataFrame()
+    if lista_df_prod:
+        df_productos = pd.concat(lista_df_prod).dropna()
+        df_productos['Producto'] = df_productos['Producto'].astype(str).str.strip()
+        df_productos = df_productos[(df_productos['Producto'] != '0') & (df_productos['Producto'] != '')]
+        df_productos = df_productos.groupby('Producto')['Cantidad'].sum().reset_index()
+        df_productos = df_productos[df_productos['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
+        total_p = df_productos['Cantidad'].sum()
+        df_productos['Porcentaje'] = (df_productos['Cantidad'] / total_p) * 100 if total_p > 0 else 0
+
     if not df_productos.empty:
+        # AQUÍ REGRESAN LOS RECUADROS A SU PESTAÑA ORIGINAL
+        top_pruebas = df_productos.head(4)
+        cols_porcentaje = st.columns(len(top_pruebas))
+        for idx, row in enumerate(top_pruebas.itertuples()):
+            with cols_porcentaje[idx]:
+                st.metric(label=f"🧬 {row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} ventas", delta_color="off")
+                st.progress(int(row.Porcentaje))
+        
+        st.markdown("<br>", unsafe_allow_html=True)
         colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5']
         fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_white", color_discrete_sequence=colores_marca)
         fig_pie.update_traces(textposition='inside', textinfo='percent+label')
