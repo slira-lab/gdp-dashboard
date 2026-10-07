@@ -52,16 +52,17 @@ st.markdown("""
         width: 100%;
         max-width: 100%;
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: space-between;
-        gap: 1.5rem;
-        padding: 0.75rem 1.5rem 0.75rem 1.5rem;
+        gap: 2rem;
+        padding: 1.5rem 2rem;
         margin: 0 0 1.25rem 0;
         border-radius: 28px;
         border: 1px solid rgba(92,149,166,0.25);
         background: linear-gradient(90deg, rgba(18,26,35,0.98), rgba(11,18,23,0.94));
         overflow: hidden;
         box-sizing: border-box;
+        min-height: 140px;
     }
     .brand-left {
         display: flex;
@@ -79,18 +80,18 @@ st.markdown("""
         display: inline-block;
         white-space: nowrap;
         flex-shrink: 0;
-        line-height: 0.9;
+        line-height: 1;
     }
     .brand-south {
         color: #C9CED0;
-        font-size: clamp(2.5rem, 4vw, 7rem);
+        font-size: clamp(3rem, 8vw, 9rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(2.5rem, 4vw, 7rem);
+        font-size: clamp(3rem, 8vw, 9rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
@@ -105,7 +106,7 @@ st.markdown("""
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.96);
-        font-size: clamp(2.5rem, 4vw, 7rem);
+        font-size: clamp(3rem, 8vw, 9rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         font-weight: 400;
@@ -116,8 +117,9 @@ st.markdown("""
             flex-wrap: wrap;
             justify-content: center;
             text-align: center;
-            padding: 0.75rem 0.75rem 1rem 0.75rem;
-            gap: 0.5rem;
+            padding: 1rem 1rem 1.5rem 1rem;
+            gap: 0.75rem;
+            min-height: auto;
         }
         .brand-left,
         .brand-right {
