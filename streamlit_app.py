@@ -325,7 +325,7 @@ with tab2:
 
 # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
 with tab3:
-    st.subheader("🏆 Ranking de Médicos (100% Confidencial)")
+    st.subheader("🏆 Ranking de Médicos")
     
     df_ranking = []
     
