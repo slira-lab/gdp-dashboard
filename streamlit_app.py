@@ -54,13 +54,13 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        gap: 0.6rem;
+        gap: 0.2rem;
         padding: 0.5rem 1rem 0.7rem 1rem;
         margin: 0 0 1.25rem 0;
         border-radius: 18px;
         border: 1px solid rgba(92,149,166,0.25);
         background: linear-gradient(90deg, rgba(18,26,35,0.96), rgba(11,18,23,0.92));
-        overflow: visible;
+        overflow: hidden;
         box-sizing: border-box;
     }
     .brand-wordmark {
@@ -70,7 +70,7 @@ st.markdown("""
         white-space: nowrap;
         min-width: 0;
         flex: 1 1 auto;
-        transform: translateY(8px);
+        transform: translateY(10px);
         overflow: visible;
     }
     .brand-south {
@@ -91,19 +91,22 @@ st.markdown("""
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.9);
-        font-size: clamp(2.8rem, 4vw, 7rem);
+        font-size: clamp(3.2rem, 5vw, 8.5rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
-        letter-spacing: 0.02em;
+        font-weight: 400;
+        letter-spacing: -0.04em;
         white-space: nowrap;
-        margin-left: -0.15rem;
-        transform: translateY(8px);
+        margin-left: -0.2rem;
+        margin-right: 0.2rem;
+        transform: translateY(18px);
+        line-height: 0.8;
     }
     .brand-molecule {
         position: relative;
-        width: 180px;
-        min-width: 180px;
-        height: 130px;
+        width: 190px;
+        min-width: 190px;
+        height: 150px;
         flex: 0 0 auto;
         transform: scale(1.12) translateY(10px);
         filter: drop-shadow(0 0 8px rgba(92,149,166,0.2));
