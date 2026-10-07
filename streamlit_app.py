@@ -182,7 +182,33 @@ def load_data():
         elif 'Cantidad' in col:
             df_fact[col] = pd.to_numeric(df_fact[col], errors='coerce').fillna(0)
             
-    return df_medicos, df_fact
+    # --- DATOS VENTAS (SEGUIMIENTO DE PRUEBAS) ---
+    try:
+        datos_ventas = doc.worksheet('VENTAS').get_all_values()
+        idx_ven = next((i for i, row in enumerate(datos_ventas) if 'PACIENTE' in str(row).upper() or 'FOLIO' in str(row).upper()), 0)
+        
+        headers = datos_ventas[idx_ven]
+        new_headers = []
+        counts = {}
+        for h in headers:
+            h = str(h).strip().upper()
+            if h in counts:
+                counts[h] += 1
+                new_headers.append(f"{h}.{counts[h]}")
+            else:
+                counts[h] = 0
+                new_headers.append(h)
+                
+        df_ventas = pd.DataFrame(datos_ventas[idx_ven+1:], columns=new_headers)
+    except Exception as e:
+        # Respaldo: Lee el archivo local de Excel si aún no está en Sheets
+        try:
+            df_ventas = pd.read_excel("Puente_Dashboard_Medicos (3).xlsx", sheet_name="VENTAS", header=2)
+            df_ventas.columns = df_ventas.columns.str.upper()
+        except:
+            df_ventas = pd.DataFrame()
+            
+    return df_medicos, df_fact, df_ventas
 
 # DESCARGA DEL MAPA GEOJSON OFICIAL
 @st.cache_data(ttl=3600)
@@ -195,7 +221,7 @@ def get_geojson():
         return None
 
 try:
-    df_medicos, df_fact = load_data()
+    df_medicos, df_fact, df_ventas = load_data()
     mexico_geojson = get_geojson()
 except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
@@ -205,7 +231,7 @@ except Exception as e:
 # 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
 # ==========================================
 try:
-    # Llama directamente al archivo de imagen que subiste a GitHub
+    # Llama directamente al archivo local subido al repositorio
     st.sidebar.image("LOGO SG (1) (2) (1).png", use_container_width=True)
 except:
     st.sidebar.markdown("### SouthGenetics")
@@ -213,7 +239,7 @@ except:
 st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio(
     "Seleccione un módulo:",
-    ["Desempeño Médico", "Próximo Módulo (Ejemplo)"]
+    ["Desempeño Médico", "Seguimiento de Pruebas"]
 )
 
 st.sidebar.markdown("---")
@@ -470,9 +496,168 @@ if modulo_seleccionado == "Desempeño Médico":
             st.info("Sin datos para generar ranking.")
 
 # ==========================================
-# 5. MÓDULO 2: PRÓXIMAMENTE (EJEMPLO)
+# 5. MÓDULO 2: SEGUIMIENTO DE PRUEBAS
 # ==========================================
-elif modulo_seleccionado == "Próximo Módulo (Ejemplo)":
-    st.markdown("<h1 class='titulo-principal'>Nuevo Dashboard (En Construcción)</h1>", unsafe_allow_html=True)
-    st.info("Este espacio está reservado para el nuevo módulo de análisis que agregará la dirección.")
-    st.markdown("Aquí se podrá conectar otra base de datos distinta o mostrar otras métricas sin afectar el Dashboard Médico.")
+elif modulo_seleccionado == "Seguimiento de Pruebas":
+    st.markdown("<h1 class='titulo-principal'>Seguimiento y Estatus de Pruebas</h1>", unsafe_allow_html=True)
+    
+    if df_ventas.empty:
+        st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
+    else:
+        # 1. Limpiar y calcular el estado actual de cada prueba
+        status_cols = [c for c in df_ventas.columns if 'STATUS' in c]
+        fecha_cols = [c for c in df_ventas.columns if 'FECHA' in c]
+        
+        def get_current_status(row):
+            # Recorre las columnas de estado de atrás hacia adelante para encontrar el último registrado
+            for sc in reversed(status_cols):
+                val = str(row.get(sc, '')).strip()
+                if val and val.upper() not in ['NAN', 'NONE', 'NAT', '']:
+                    return val
+            return 'PENDIENTE'
+            
+        df_ventas['ESTADO_ACTUAL'] = df_ventas.apply(get_current_status, axis=1)
+        
+        # 2. Mapear estado interno a las 4 categorías del Tracker
+        def map_status_category(estado):
+            estado = str(estado).upper()
+            if any(x in estado for x in ['PROSPECTO', 'SOLICITUD', 'CANCELADA', 'PENDIENTE']):
+                return "Pendiente de Toma"
+            elif any(x in estado for x in ['RECOLECCION', 'CORTES', 'ENTREGA', 'ENVIO', 'TRANSITO']):
+                return "En Tránsito"
+            elif any(x in estado for x in ['LABORATORIO', 'ANALISIS', 'RECEPCION']):
+                return "En Laboratorio"
+            elif any(x in estado for x in ['RESULTADO', 'LISTO', 'COMPLETADO', 'FINALIZADO']):
+                return "Resultado Listo"
+            return "Pendiente de Toma" # Por defecto
+            
+        df_ventas['CATEGORIA_ESTADO'] = df_ventas['ESTADO_ACTUAL'].apply(map_status_category)
+        
+        # 3. Filtros rápidos (Top)
+        st.markdown("<br>", unsafe_allow_html=True)
+        filtro_estado = st.radio(
+            "Filtros rápido:",
+            ["Todos", "Pendiente de Toma", "En Tránsito", "En Laboratorio", "Resultado Listo"],
+            horizontal=True
+        )
+        
+        if filtro_estado != "Todos":
+            df_filtrado = df_ventas[df_ventas['CATEGORIA_ESTADO'] == filtro_estado]
+        else:
+            df_filtrado = df_ventas
+            
+        lista_pacientes = df_filtrado['PACIENTE'].dropna().unique().tolist()
+        lista_pacientes = [p for p in lista_pacientes if str(p).strip() and str(p).upper() != 'NAN']
+        
+        # 4. Buscador de Paciente
+        col_search, _ = st.columns([2, 1])
+        with col_search:
+            paciente_seleccionado = st.selectbox("Búsqueda por Paciente", ["Seleccione un paciente..."] + sorted(lista_pacientes))
+            
+        if paciente_seleccionado != "Seleccione un paciente...":
+            # Extraer los datos del paciente seleccionado
+            datos_paciente = df_ventas[df_ventas['PACIENTE'] == paciente_seleccionado].iloc[-1]
+            
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
+            
+            col_track, col_details = st.columns([2, 1], gap="large")
+            
+            with col_track:
+                st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
+                
+                # Configuración de los Pasos (Stepper)
+                etapas = ["Pendiente de Toma", "En Tránsito", "En Laboratorio", "Resultado Listo"]
+                etapas_labels = ["Toma de Muestra", "Envíado / Courier", "En Laboratorio / Análisis", "Resultado Listo"]
+                cat_actual = datos_paciente['CATEGORIA_ESTADO']
+                idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
+                
+                # Barra de Progreso Dinámica mediante HTML/CSS
+                progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
+                
+                html_stepper = f"""
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
+                    <!-- Linea de fondo (Gris) -->
+                    <div style="position: absolute; top: 17px; left: 12.5%; width: 75%; height: 4px; background-color: #333333; z-index: 0;"></div>
+                    <!-- Linea de progreso (Color marca) -->
+                    <div style="position: absolute; top: 17px; left: 12.5%; width: {progress_percentage * 0.75}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
+                """
+
+                for i, label in enumerate(etapas_labels):
+                    if i < idx_actual:
+                        # Completado
+                        icon = "✔"
+                        color = "#5C95A6"
+                        text_color = "#FFFFFF"
+                        sub_text = "Completado"
+                    elif i == idx_actual:
+                        # Actual
+                        icon = "●"
+                        color = "#FF9F1C"
+                        text_color = "#FF9F1C"
+                        sub_text = "En Proceso"
+                    else:
+                        # Pendiente
+                        icon = ""
+                        color = "#333333"
+                        text_color = "#888888"
+                        sub_text = "Pendiente"
+                        
+                    html_stepper += f"""
+                    <div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 16px; font-weight: bold; margin-bottom: 12px;">{icon}</div>
+                        <div style="font-weight: bold; color: {text_color}; font-size: 13px; text-align: center; line-height: 1.2;">{label}</div>
+                        <div style="color: {text_color}; font-size: 11px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
+                    </div>
+                    """
+                html_stepper += "</div>"
+                st.markdown(html_stepper, unsafe_allow_html=True)
+                
+            with col_details:
+                # Tarjeta de Detalles del paciente (UI Card)
+                html_detalles = f"""
+                <div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
+                    <h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
+                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
+                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
+                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
+                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
+                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
+                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
+                </div>
+                """
+                st.markdown(html_detalles, unsafe_allow_html=True)
+                
+            # 5. Tabla Histórica / Bitácora
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
+            
+            historial = []
+            # Recopilar todo el registro histórico de esa fila iterando fechas y estados
+            for f_col, s_col in zip(fecha_cols, status_cols):
+                fecha_val = str(datos_paciente.get(f_col, '')).strip()
+                status_val = str(datos_paciente.get(s_col, '')).strip()
+                if status_val and status_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
+                    
+                    # Dividir Fecha y Hora si están disponibles en el formato
+                    if ' ' in fecha_val:
+                        fecha_limpia = fecha_val.split()[0]
+                        hora_limpia = fecha_val.split()[1][:5]
+                    else:
+                        fecha_limpia = fecha_val
+                        hora_limpia = "-"
+                        
+                    historial.append({
+                        "Fecha": fecha_limpia,
+                        "Hora": hora_limpia,
+                        "Estado": status_val,
+                        "Descripción": "Actualización registrada en sistema",
+                        "Nota": "-"
+                    })
+                    
+            if historial:
+                df_historial = pd.DataFrame(historial)
+                # Ordenar cronológicamente (asumiendo que las fechas vienen en formato ordenable)
+                st.dataframe(df_historial, use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay historial registrado en la bitácora para esta prueba.")
