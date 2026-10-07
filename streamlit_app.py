@@ -8,7 +8,7 @@ import json
 import requests
 
 # ==========================================
-# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO 
+# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
 # ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
@@ -186,9 +186,18 @@ if modulo_seleccionado == "Desempeño Médico":
     pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
     porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
+    # Lógica para determinar si cuenta con beneficios (basado en si hay monto de inversión registrado)
+    inversion_cols_top = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
+    inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
+    
+    if medico_seleccionado == "Todos":
+        estatus_beneficios = "Múltiples"
+    else:
+        estatus_beneficios = "Sí" if inversion_total_filtrada > 0 else "No"
+
     st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.metric("Participación de Pruebas (%)", f"{porcentaje_pruebas:.2f}%")
     with col2:
@@ -199,6 +208,8 @@ if modulo_seleccionado == "Desempeño Médico":
     with col4:
         esp = df_med_filtrado['ESPECIALIDAD'].iloc[0] if medico_seleccionado != "Todos" else "Todas"
         st.metric("Especialidad", esp)
+    with col5:
+        st.metric("Beneficios Activos", estatus_beneficios)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
