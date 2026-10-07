@@ -48,7 +48,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. CONEXIÓN A DATOS, MONEDA Y MAPAS BLINDADA
+# 2. CONEXIÓN A DATOS Y CORRECCIÓN
 # ==========================================
 @st.cache_data(ttl=600)
 def load_data():
@@ -65,11 +65,10 @@ def load_data():
     idx_med = next(i for i, row in enumerate(datos_medicos) if 'NOMBRE' in str(row))
     df_medicos = pd.DataFrame(datos_medicos[idx_med+1:], columns=datos_medicos[idx_med])
     
-    # Blindaje contra espacios en blanco accidentales en las columnas y filas
     df_medicos.columns = df_medicos.columns.astype(str).str.strip()
     df_medicos = df_medicos[df_medicos['NOMBRE'].astype(str).str.strip() != ""]
     
-    mapa_estados = { 
+    mapa_estados = {
         'Guadalajara': 'Jalisco', 'Chihuahua': 'Chihuahua', 'Cd. Juárez': 'Chihuahua',
         'CDMX Norte': 'Ciudad de México', 'CDMX Sur': 'Ciudad de México',
         'CDMX Centro': 'Ciudad de México', 'CDMX': 'Ciudad de México',
@@ -90,7 +89,6 @@ def load_data():
     if 'TERRITORIO' in df_medicos.columns:
         df_medicos['Estado_oficial'] = df_medicos['TERRITORIO'].apply(obtener_estado)
         
-        # Respaldo (Fallback) para burbujas si falla el mapa coroplético
         coords = {
             'Guadalajara': [20.6596, -103.3496], 'Chihuahua': [28.6329, -106.0691],
             'CDMX Norte': [19.4326, -99.1332], 'CDMX Sur': [19.3000, -99.1500],
@@ -110,7 +108,6 @@ def load_data():
     idx_fac = next(i for i, row in enumerate(datos_fact) if 'NOMBRE' in str(row))
     df_fact = pd.DataFrame(datos_fact[idx_fac+1:], columns=datos_fact[idx_fac])
     
-    # Blindaje contra espacios vacíos
     df_fact.columns = df_fact.columns.astype(str).str.strip()
     df_fact = df_fact[df_fact['NOMBRE'].astype(str).str.strip() != ""]
     
@@ -328,34 +325,51 @@ with tab2:
 
 # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
 with tab3:
-    st.subheader("🏆 Ranking de Médicos (Tabla Visual)")
+    st.subheader("🏆 Ranking de Médicos (100% Confidencial)")
     
     df_ranking = []
+    
+    # Cálculos globales para sacar el porcentaje exacto de todo
     ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
+    inversion_cols = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
+    inversion_global = df_fact[inversion_cols].sum().sum() if inversion_cols else 0
     
     for index, row in df_fact_filtrado.iterrows():
         nombre = row['NOMBRE']
         ingresos_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in monto_meses if c in df_fact.columns)
         pruebas_medico = sum(pd.to_numeric(row[c], errors='coerce') for c in cant_meses if c in df_fact.columns)
-        inversion = row['Inversión Total'] if 'Inversión Total' in df_fact.columns else 0
-        df_ranking.append({'Médico': nombre, 'Pruebas': pruebas_medico, 'Ingreso ($)': ingresos_medico, 'Beneficio ($)': pd.to_numeric(inversion, errors='coerce')})
         
-    df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index().sort_values('Pruebas', ascending=False)
+        inversion_medico = 0
+        for col in inversion_cols:
+            inversion_medico += pd.to_numeric(row[col], errors='coerce')
+            
+        df_ranking.append({
+            'Médico': nombre, 
+            'Pruebas': pruebas_medico, 
+            'Ingreso ($)': ingresos_medico, 
+            'Beneficio ($)': inversion_medico
+        })
+        
+    df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index()
     
     if not df_ranking.empty:
+        # Se calculan los porcentajes de cada categoría
         df_ranking['% de Pruebas'] = (df_ranking['Pruebas'] / pruebas_global) * 100 if pruebas_global > 0 else 0
-        max_pruebas = int(df_ranking['Pruebas'].max())
+        df_ranking['% de Ingresos'] = (df_ranking['Ingreso ($)'] / ingreso_global) * 100 if ingreso_global > 0 else 0
+        df_ranking['% de Beneficios'] = (df_ranking['Beneficio ($)'] / inversion_global) * 100 if inversion_global > 0 else 0
+        
+        df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
         
         st.dataframe(
             df_ranking,
             column_config={
                 "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
-                "Pruebas": st.column_config.ProgressColumn("Total Pruebas", format="%d", min_value=0, max_value=max_pruebas),
-                "% de Pruebas": st.column_config.ProgressColumn("Cuota de Mercado (%)", format="%.2f%%", min_value=0, max_value=100),
-                "Beneficio ($)": st.column_config.NumberColumn("Inversión / Apoyo", format="$%.2f")
+                "% de Pruebas": st.column_config.ProgressColumn("Cuota de Pruebas (%)", format="%.2f%%", min_value=0, max_value=100),
+                "% de Ingresos": st.column_config.ProgressColumn("Cuota de Ingresos (%)", format="%.2f%%", min_value=0, max_value=100),
+                "% de Beneficios": st.column_config.ProgressColumn("Cuota de Beneficios (%)", format="%.2f%%", min_value=0, max_value=100)
             },
             hide_index=True,
-            column_order=["Médico", "Pruebas", "% de Pruebas", "Beneficio ($)"],
+            column_order=["Médico", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
             use_container_width=True
         )
     else:
