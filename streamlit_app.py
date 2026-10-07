@@ -47,6 +47,101 @@ st.markdown("""
     }
     h2, h3 { color: #5C95A6 !important; font-family: 'Arial', sans-serif; }
     hr { border-color: #333333 !important; }
+
+    .brand-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.25rem 0.75rem 0.1rem 0.75rem;
+        margin: 0 0 1.25rem 0;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(92,149,166,0.12);
+    }
+    .brand-wordmark {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        white-space: nowrap;
+        overflow: hidden;
+        flex: 1 1 auto;
+        min-width: 0;
+        line-height: 0.82;
+    }
+    .brand-south {
+        color: #B0B7B9;
+        font-size: clamp(4.2rem, 8vw, 13rem);
+        font-weight: 700;
+        letter-spacing: -0.08em;
+        font-family: 'Arial', sans-serif;
+    }
+    .brand-genetics {
+        color: #5C95A6;
+        font-size: clamp(4.2rem, 8vw, 13rem);
+        font-weight: 700;
+        letter-spacing: -0.08em;
+        font-family: 'Arial', sans-serif;
+    }
+    .brand-country {
+        color: rgba(91, 135, 148, 0.9);
+        font-size: clamp(2.2rem, 4vw, 5.5rem);
+        font-family: 'Georgia', 'Times New Roman', serif;
+        font-style: italic;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        margin-left: auto;
+    }
+    .brand-molecule {
+        position: relative;
+        width: 160px;
+        height: 120px;
+        flex: 0 0 auto;
+        margin-left: 0.25rem;
+        filter: drop-shadow(0 0 8px rgba(92,149,166,0.2));
+    }
+    .brand-node {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,0.18);
+    }
+    .brand-node.node-a { background: #A7D7CC; left: 115px; top: 8px; }
+    .brand-node.node-b { background: #A3C97B; left: 142px; top: 42px; }
+    .brand-node.node-c { background: #7BB1C5; left: 92px; top: 42px; }
+    .brand-node.node-d { background: #B7D89D; left: 58px; top: 78px; }
+    .brand-node.node-e { background: #C6D6A0; left: 118px; top: 82px; }
+    .brand-node.node-f { background: #8BB6C5; left: 42px; top: 40px; }
+    .brand-node.node-g { background: #E0D2A8; left: 146px; top: 86px; }
+    .brand-connector {
+        position: absolute;
+        height: 3px;
+        background: rgba(110, 160, 170, 0.9);
+        transform-origin: left center;
+        border-radius: 10px;
+    }
+    .brand-connector.c1 { width: 52px; left: 120px; top: 16px; transform: rotate(26deg); }
+    .brand-connector.c2 { width: 52px; left: 95px; top: 52px; transform: rotate(-18deg); }
+    .brand-connector.c3 { width: 55px; left: 70px; top: 74px; transform: rotate(18deg); }
+    .brand-connector.c4 { width: 48px; left: 58px; top: 52px; transform: rotate(-15deg); }
+    .brand-connector.c5 { width: 40px; left: 123px; top: 90px; transform: rotate(20deg); }
+    .brand-connector.c6 { width: 52px; left: 92px; top: 46px; transform: rotate(58deg); }
+    .brand-connector.c7 { width: 52px; left: 118px; top: 64px; transform: rotate(82deg); }
+    @media (max-width: 900px) {
+        .brand-banner {
+            flex-wrap: wrap;
+            justify-content: center;
+            text-align: center;
+        }
+        .brand-wordmark {
+            width: 100%;
+            justify-content: center;
+        }
+        .brand-country {
+            margin: 0;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -194,6 +289,30 @@ if modulo_seleccionado == "Desempeño Médico":
         estatus_beneficios = "Múltiples"
     else:
         estatus_beneficios = "Sí" if inversion_total_filtrada > 0 else "No"
+
+    st.markdown("""
+    <div class="brand-banner">
+      <div class="brand-wordmark">
+        <span class="brand-south">SOUTH</span><span class="brand-genetics">GENETICS</span>
+      </div>
+      <div class="brand-molecule" aria-hidden="true">
+        <span class="brand-connector c1"></span>
+        <span class="brand-connector c2"></span>
+        <span class="brand-connector c3"></span>
+        <span class="brand-connector c4"></span>
+        <span class="brand-connector c5"></span>
+        <span class="brand-connector c6"></span>
+        <span class="brand-connector c7"></span>
+        <span class="brand-node node-a"></span>
+        <span class="brand-node node-b"></span>
+        <span class="brand-node node-c"></span>
+        <span class="brand-node node-d"></span>
+        <span class="brand-node node-e"></span>
+        <span class="brand-node node-f"></span>
+      </div>
+      <div class="brand-country">México</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
 
