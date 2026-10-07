@@ -50,36 +50,28 @@ st.markdown("""
 
     .brand-banner {
         width: 100%;
-        max-width: 100%;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 1.5rem;
+        justify-content: center; /* Centra los elementos y quita el espacio extremo */
+        gap: 1.5rem; /* Espacio entre Genetics y México */
         padding: 1.5rem 2rem;
         margin: 0 0 1.25rem 0;
         border-radius: 28px;
         border: 1px solid rgba(92,149,166,0.25);
         background: linear-gradient(90deg, rgba(18,26,35,0.98), rgba(11,18,23,0.94));
-        overflow: hidden;
         box-sizing: border-box;
         min-height: 140px;
     }
     .brand-left {
         display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        flex: 1 1 auto;
-        min-width: 0;
+        align-items: baseline;
         white-space: nowrap;
-        overflow: visible;
-        gap: 0;
     }
     .brand-south,
     .brand-genetics,
     .brand-country {
         display: inline-block;
         white-space: nowrap;
-        flex-shrink: 0;
         line-height: 1;
     }
     .brand-south {
@@ -98,11 +90,7 @@ st.markdown("""
     }
     .brand-right {
         display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0;
-        flex: 0 0 auto;
-        overflow: visible;
+        align-items: baseline;
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.96);
@@ -115,16 +103,9 @@ st.markdown("""
     @media (max-width: 900px) {
         .brand-banner {
             flex-wrap: wrap;
-            justify-content: center;
-            text-align: center;
-            padding: 1rem 1rem 1.5rem 1rem;
-            gap: 0.75rem;
+            padding: 1rem;
+            gap: 0.5rem;
             min-height: auto;
-        }
-        .brand-left,
-        .brand-right {
-            width: 100%;
-            justify-content: center;
         }
     }
 </style>
