@@ -49,55 +49,63 @@ st.markdown("""
     hr { border-color: #333333 !important; }
 
     .brand-banner {
+        width: 100%;
+        max-width: 100%;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.25rem 0.75rem 0.1rem 0.75rem;
+        justify-content: flex-start;
+        gap: 0.6rem;
+        padding: 0.5rem 1rem 0.7rem 1rem;
         margin: 0 0 1.25rem 0;
-        border-radius: 12px;
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(92,149,166,0.12);
+        border-radius: 18px;
+        border: 1px solid rgba(92,149,166,0.25);
+        background: linear-gradient(90deg, rgba(18,26,35,0.96), rgba(11,18,23,0.92));
+        overflow: visible;
+        box-sizing: border-box;
     }
     .brand-wordmark {
         display: flex;
         align-items: flex-end;
-        justify-content: center;
+        justify-content: flex-start;
         white-space: nowrap;
-        overflow: hidden;
-        flex: 1 1 auto;
         min-width: 0;
-        line-height: 0.82;
+        flex: 1 1 auto;
+        transform: translateY(8px);
+        overflow: visible;
     }
     .brand-south {
-        color: #B0B7B9;
-        font-size: clamp(4.2rem, 8vw, 13rem);
+        color: #B4B8BA;
+        font-size: clamp(5rem, 9vw, 17rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
+        line-height: 0.7;
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(4.2rem, 8vw, 13rem);
+        font-size: clamp(5rem, 9vw, 17rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
+        line-height: 0.7;
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.9);
-        font-size: clamp(2.2rem, 4vw, 5.5rem);
+        font-size: clamp(2.8rem, 4vw, 7rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         letter-spacing: 0.02em;
         white-space: nowrap;
-        margin-left: auto;
+        margin-left: -0.15rem;
+        transform: translateY(8px);
     }
     .brand-molecule {
         position: relative;
-        width: 160px;
-        height: 120px;
+        width: 180px;
+        min-width: 180px;
+        height: 130px;
         flex: 0 0 auto;
-        margin-left: 0.25rem;
+        transform: scale(1.12) translateY(10px);
         filter: drop-shadow(0 0 8px rgba(92,149,166,0.2));
     }
     .brand-node {
@@ -105,15 +113,15 @@ st.markdown("""
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,0.18);
+        box-shadow: inset 0 0 0 2px rgba(255,255,255,0.16);
     }
-    .brand-node.node-a { background: #A7D7CC; left: 115px; top: 8px; }
-    .brand-node.node-b { background: #A3C97B; left: 142px; top: 42px; }
-    .brand-node.node-c { background: #7BB1C5; left: 92px; top: 42px; }
-    .brand-node.node-d { background: #B7D89D; left: 58px; top: 78px; }
-    .brand-node.node-e { background: #C6D6A0; left: 118px; top: 82px; }
-    .brand-node.node-f { background: #8BB6C5; left: 42px; top: 40px; }
-    .brand-node.node-g { background: #E0D2A8; left: 146px; top: 86px; }
+    .brand-node.node-a { background: #A7D7CC; left: 128px; top: 10px; }
+    .brand-node.node-b { background: #A3C97B; left: 153px; top: 48px; }
+    .brand-node.node-c { background: #7BB1C5; left: 103px; top: 47px; }
+    .brand-node.node-d { background: #B7D89D; left: 70px; top: 80px; }
+    .brand-node.node-e { background: #C6D6A0; left: 132px; top: 92px; }
+    .brand-node.node-f { background: #8BB6C5; left: 62px; top: 42px; }
+    .brand-node.node-g { background: #D6D7A7; left: 154px; top: 92px; }
     .brand-connector {
         position: absolute;
         height: 3px;
@@ -121,18 +129,19 @@ st.markdown("""
         transform-origin: left center;
         border-radius: 10px;
     }
-    .brand-connector.c1 { width: 52px; left: 120px; top: 16px; transform: rotate(26deg); }
-    .brand-connector.c2 { width: 52px; left: 95px; top: 52px; transform: rotate(-18deg); }
-    .brand-connector.c3 { width: 55px; left: 70px; top: 74px; transform: rotate(18deg); }
-    .brand-connector.c4 { width: 48px; left: 58px; top: 52px; transform: rotate(-15deg); }
-    .brand-connector.c5 { width: 40px; left: 123px; top: 90px; transform: rotate(20deg); }
-    .brand-connector.c6 { width: 52px; left: 92px; top: 46px; transform: rotate(58deg); }
-    .brand-connector.c7 { width: 52px; left: 118px; top: 64px; transform: rotate(82deg); }
+    .brand-connector.c1 { width: 54px; left: 132px; top: 18px; transform: rotate(25deg); }
+    .brand-connector.c2 { width: 52px; left: 103px; top: 55px; transform: rotate(-18deg); }
+    .brand-connector.c3 { width: 55px; left: 79px; top: 78px; transform: rotate(20deg); }
+    .brand-connector.c4 { width: 44px; left: 68px; top: 53px; transform: rotate(-18deg); }
+    .brand-connector.c5 { width: 38px; left: 130px; top: 100px; transform: rotate(22deg); }
+    .brand-connector.c6 { width: 50px; left: 95px; top: 48px; transform: rotate(58deg); }
+    .brand-connector.c7 { width: 42px; left: 126px; top: 68px; transform: rotate(78deg); }
     @media (max-width: 900px) {
         .brand-banner {
             flex-wrap: wrap;
             justify-content: center;
             text-align: center;
+            padding: 0.75rem 0.75rem 1rem 0.75rem;
         }
         .brand-wordmark {
             width: 100%;
@@ -140,6 +149,10 @@ st.markdown("""
         }
         .brand-country {
             margin: 0;
+            transform: none;
+        }
+        .brand-molecule {
+            transform: scale(1) translateY(0);
         }
     }
 </style>
@@ -293,8 +306,9 @@ if modulo_seleccionado == "Desempeño Médico":
     st.markdown("""
     <div class="brand-banner">
       <div class="brand-wordmark">
-        <span class="brand-south">SOUTH</span><span class="brand-genetics">GENETICS</span>
+        <span class="brand-south">South</span><span class="brand-genetics">Genetics</span>
       </div>
+      <div class="brand-country">México</div>
       <div class="brand-molecule" aria-hidden="true">
         <span class="brand-connector c1"></span>
         <span class="brand-connector c2"></span>
@@ -309,8 +323,8 @@ if modulo_seleccionado == "Desempeño Médico":
         <span class="brand-node node-d"></span>
         <span class="brand-node node-e"></span>
         <span class="brand-node node-f"></span>
+        <span class="brand-node node-g"></span>
       </div>
-      <div class="brand-country">México</div>
     </div>
     """, unsafe_allow_html=True)
 
