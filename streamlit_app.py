@@ -54,8 +54,8 @@ st.markdown("""
         display: flex;
         align-items: flex-end;
         justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem 0.7rem 1rem;
+        gap: 1.5rem;
+        padding: 0.75rem 1.5rem 0.75rem 1.5rem;
         margin: 0 0 1.25rem 0;
         border-radius: 28px;
         border: 1px solid rgba(92,149,166,0.25);
@@ -65,110 +65,64 @@ st.markdown("""
     }
     .brand-left {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: flex-start;
         flex: 1 1 auto;
         min-width: 0;
         white-space: nowrap;
         overflow: visible;
+        gap: 0;
     }
     .brand-south,
-    .brand-genetics {
+    .brand-genetics,
+    .brand-country {
         display: inline-block;
         white-space: nowrap;
         flex-shrink: 0;
-        line-height: 0.72;
+        line-height: 0.9;
     }
     .brand-south {
         color: #C9CED0;
-        font-size: clamp(4rem, 7vw, 12rem);
+        font-size: clamp(2.5rem, 4vw, 7rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(4rem, 7vw, 12rem);
+        font-size: clamp(2.5rem, 4vw, 7rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
     .brand-right {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: flex-end;
-        gap: 0.35rem;
+        gap: 0;
         flex: 0 0 auto;
         overflow: visible;
-        margin-left: 0.75rem;
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.96);
-        font-size: clamp(2.2rem, 3.2vw, 6rem);
+        font-size: clamp(2.5rem, 4vw, 7rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         font-weight: 400;
         letter-spacing: -0.04em;
-        line-height: 0.8;
-        transform: translateY(-0.05em);
-        white-space: nowrap;
-        margin-right: 0.15rem;
     }
-    .brand-molecule {
-        position: relative;
-        width: 150px;
-        min-width: 150px;
-        height: 120px;
-        flex: 0 0 auto;
-        transform: scale(0.92);
-        transform-origin: left center;
-        filter: drop-shadow(0 0 8px rgba(92,149,166,0.2));
-    }
-    .brand-node {
-        position: absolute;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,0.16);
-    }
-    .brand-node.node-a { background: #A7D7CC; left: 108px; top: 12px; }
-    .brand-node.node-b { background: #A3C97B; left: 130px; top: 42px; }
-    .brand-node.node-c { background: #7BB1C5; left: 88px; top: 42px; }
-    .brand-node.node-d { background: #B7D89D; left: 62px; top: 70px; }
-    .brand-node.node-e { background: #C6D6A0; left: 110px; top: 86px; }
-    .brand-node.node-f { background: #8BB6C5; left: 54px; top: 38px; }
-    .brand-node.node-g { background: #D6D7A7; left: 139px; top: 82px; }
-    .brand-connector {
-        position: absolute;
-        height: 3px;
-        background: rgba(110, 160, 170, 0.9);
-        transform-origin: left center;
-        border-radius: 10px;
-    }
-    .brand-connector.c1 { width: 46px; left: 111px; top: 18px; transform: rotate(26deg); }
-    .brand-connector.c2 { width: 48px; left: 90px; top: 49px; transform: rotate(-18deg); }
-    .brand-connector.c3 { width: 52px; left: 68px; top: 70px; transform: rotate(20deg); }
-    .brand-connector.c4 { width: 36px; left: 58px; top: 48px; transform: rotate(-14deg); }
-    .brand-connector.c5 { width: 30px; left: 109px; top: 92px; transform: rotate(18deg); }
-    .brand-connector.c6 { width: 36px; left: 84px; top: 46px; transform: rotate(58deg); }
-    .brand-connector.c7 { width: 34px; left: 108px; top: 62px; transform: rotate(72deg); }
     @media (max-width: 900px) {
         .brand-banner {
             flex-wrap: wrap;
             justify-content: center;
             text-align: center;
             padding: 0.75rem 0.75rem 1rem 0.75rem;
+            gap: 0.5rem;
         }
         .brand-left,
         .brand-right {
             width: 100%;
             justify-content: center;
-        }
-        .brand-country {
-            transform: none;
-        }
-        .brand-molecule {
-            transform: scale(0.88);
         }
     }
 </style>
@@ -326,22 +280,6 @@ if modulo_seleccionado == "Desempeño Médico":
       </div>
       <div class="brand-right">
         <span class="brand-country">México</span>
-        <div class="brand-molecule" aria-hidden="true">
-          <span class="brand-connector c1"></span>
-          <span class="brand-connector c2"></span>
-          <span class="brand-connector c3"></span>
-          <span class="brand-connector c4"></span>
-          <span class="brand-connector c5"></span>
-          <span class="brand-connector c6"></span>
-          <span class="brand-connector c7"></span>
-          <span class="brand-node node-a"></span>
-          <span class="brand-node node-b"></span>
-          <span class="brand-node node-c"></span>
-          <span class="brand-node node-d"></span>
-          <span class="brand-node node-e"></span>
-          <span class="brand-node node-f"></span>
-          <span class="brand-node node-g"></span>
-        </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
