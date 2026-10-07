@@ -10,40 +10,76 @@ import requests
 # ==========================================
 # 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO
 # ==========================================
-st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="SouthGenetics | BI", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
 
+# Inyección de CSS Avanzado para Look Corporativo
 st.markdown("""
 <style>
-    .titulo-principal {
-        font-size: 2.2rem !important;
-        color: #5C95A6 !important;
-        font-family: 'Arial', sans-serif;
-        font-weight: bold;
-        margin-bottom: 0px;
-        padding-bottom: 15px;
-    }
-    [data-testid="stMetric"] {
+    /* Fondo general más limpio */
+    .stApp {
         background-color: #F8F9FA;
-        border-left: 6px solid #5C95A6;
-        border-radius: 8px;
-        padding: 15px 20px;
-        box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
     }
+    
+    /* Estilo del título principal */
+    .titulo-principal {
+        font-size: 2.4rem !important;
+        color: #1A365D !important; /* Azul marino corporativo */
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 700;
+        margin-bottom: 0px;
+        padding-bottom: 0px;
+        margin-top: 10px;
+    }
+    
+    /* Diseño de las tarjetas de métricas (KPIs) */
+    [data-testid="stMetric"] {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-left: 5px solid #5C95A6; /* Color de tu marca */
+        border-radius: 8px;
+        padding: 20px 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    /* Efecto al pasar el mouse por las tarjetas */
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Texto del valor del KPI */
     [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
-        color: #333333 !important;
+        font-size: 1.8rem !important;
+        color: #2D3748 !important;
+        font-weight: 700 !important;
         white-space: normal !important;
         line-height: 1.2 !important;
     }
     [data-testid="stMetricValue"] > div {
         white-space: normal !important;
     }
+    
+    /* Texto del título del KPI */
     [data-testid="stMetricLabel"] {
-        font-size: 1rem !important;
-        color: #666666 !important;
-        font-weight: bold;
+        font-size: 1.05rem !important;
+        color: #718096 !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
-    h2, h3 { color: #5C95A6 !important; font-family: 'Arial', sans-serif; }
+    
+    /* Subtítulos de las secciones */
+    h2, h3 { 
+        color: #2C5282 !important; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+    }
+    
+    /* Estilo de los separadores */
+    hr {
+        border-top: 2px solid #E2E8F0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -140,15 +176,19 @@ except Exception as e:
 # ==========================================
 # 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
 # ==========================================
+# Integración del logo en la barra lateral
+st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 try:
-    st.sidebar.image("LOGO SG (1) (2).png", use_container_width=True)
+    st.sidebar.image("LOGO SG (1) (2).png", width=180)
 except:
     st.sidebar.markdown("### SouthGenetics")
+st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
+st.sidebar.markdown("---")
 st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio(
     "Seleccione un módulo:",
-    ["🧬 Desempeño Médico", "📊 Próximo Módulo (Ejemplo)"]
+    ["🧬 Desempeño Médico", "📊 Próximo Módulo"]
 )
 
 st.sidebar.markdown("---")
@@ -162,7 +202,6 @@ if st.sidebar.button("🔄 Actualizar Datos", use_container_width=True, help="Fo
 # ==========================================
 if modulo_seleccionado == "🧬 Desempeño Médico":
     
-    # Filtro específico de este módulo
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     st.sidebar.title("Filtro Ejecutivo")
     lista_medicos = ["Todos"] + df_medicos['NOMBRE'].unique().tolist()
@@ -175,7 +214,6 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
         df_med_filtrado = df_medicos
         df_fact_filtrado = df_fact
 
-    # Cálculos globales
     cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
     monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 
@@ -183,11 +221,21 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
     pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
     porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
-    st.markdown("<h1 class='titulo-principal'>📊 Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
+    # CABECERA PRINCIPAL CON LOGO INTEGRADO AL TÍTULO
+    col_logo, col_tit = st.columns([1, 8])
+    with col_logo:
+        try:
+            st.image("LOGO SG (1) (2).png", width=90)
+        except:
+            st.markdown("🏢")
+    with col_tit:
+        st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Participación de Pruebas (%)", f"{porcentaje_pruebas:.2f}%")
+        st.metric("Participación de Pruebas", f"{porcentaje_pruebas:.2f}%")
     with col2:
         st.metric("Total de Pruebas", int(pruebas_totales))
     with col3:
@@ -199,8 +247,7 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Sistema de Pestañas
-    tab1, tab2, tab3 = st.tabs(["🌎 Visión General", "🧬 Análisis de Pruebas", "🏆 Ranking y Beneficios"])
+    tab1, tab2, tab3 = st.tabs(["🌎 Visión General", "🧬 Análisis de Pruebas", "🏆 Ranking Corporativo"])
 
     # --- PESTAÑA 1: VISIÓN GENERAL ---
     with tab1:
@@ -213,7 +260,8 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
             meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
             df_linea = pd.DataFrame({'Mes': meses_nombres, 'Pruebas': ventas_por_mes})
             fig_line = px.line(df_linea, x='Mes', y='Pruebas', template="plotly_white", markers=True, line_shape="spline")
-            fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#87A98A'))
+            fig_line.update_traces(line_color='#5C95A6', line_width=4, marker=dict(size=8, color='#1A365D'))
+            fig_line.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_line, use_container_width=True)
 
         with colB:
@@ -241,12 +289,11 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
                         locations='Estado_oficial', 
                         featureidkey='properties.name', 
                         color='Doctores',
-                        color_continuous_scale=["#2a2a2a", "#5C95A6", "#2EC4B6"],
+                        color_continuous_scale=["#E2E8F0", "#5C95A6", "#1A365D"],
                         range_color=(0, max_docs)
                     )
                     
                     fig_map.update_geos(fitbounds="locations", visible=False, bgcolor="rgba(0,0,0,0)")
-                    
                     fig_map.update_layout(
                         margin={"r":0,"t":0,"l":0,"b":0},
                         paper_bgcolor='rgba(0,0,0,0)',
@@ -254,7 +301,7 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
                         geo=dict(bgcolor='rgba(0,0,0,0)'),
                         coloraxis_showscale=False
                     )
-                    fig_map.update_traces(marker_line_width=1, marker_line_color='#444444')
+                    fig_map.update_traces(marker_line_width=1, marker_line_color='#CBD5E0')
                     
                     st.plotly_chart(fig_map, use_container_width=True)
                 except Exception as e:
@@ -286,12 +333,12 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
             df_pivot = df_pivot.reindex(meses_cortos).fillna(0) 
             df_barras_clean = df_pivot.reset_index().melt(id_vars='Mes', value_name='Cantidad')
             
-            colores_marca = ['#2EC4B6', '#FF9F1C', '#5C95A6', '#87A98A', '#E2A973', '#4A7A8A', '#999999', '#A3C1CC']
+            colores_marca = ['#1A365D', '#5C95A6', '#FF9F1C', '#87A98A', '#E2A973', '#4A7A8A', '#A0AEC0']
             fig_line_prod = px.line(df_barras_clean, x='Mes', y='Cantidad', color='Prueba', markers=True, template="plotly_white", color_discrete_sequence=colores_marca)
             
-            fig_line_prod.update_traces(line=dict(width=4), marker=dict(size=8))
+            fig_line_prod.update_traces(line=dict(width=3), marker=dict(size=7))
             fig_line_prod.update_xaxes(categoryorder='array', categoryarray=meses_cortos)
-            fig_line_prod.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas", hovermode="x unified")
+            fig_line_prod.update_layout(legend_title_text='Tipo de Prueba', xaxis_title="Meses", yaxis_title="Pruebas Vendidas", hovermode="x unified", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_line_prod, use_container_width=True)
         else:
             st.info("No hay datos suficientes para graficar.")
@@ -325,16 +372,17 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
                     st.progress(int(row.Porcentaje))
             
             st.markdown("<br>", unsafe_allow_html=True)
-            colores_marca = ['#5C95A6', '#87A98A', '#A3C1CC', '#999999', '#D1E0E5']
+            colores_marca = ['#1A365D', '#5C95A6', '#87A98A', '#FF9F1C', '#E2A973']
             fig_pie = px.pie(df_productos, values='Cantidad', names='Producto', hole=0.45, template="plotly_white", color_discrete_sequence=colores_marca)
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            fig_pie.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("No hay ventas registradas para generar el desglose.")
 
-    # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
+    # --- PESTAÑA 3: RANKING CORPORATIVO ---
     with tab3:
-        st.subheader("🏆 Ranking de Médicos (100% Confidencial)")
+        st.subheader("🏆 Ranking Corporativo de Médicos (100% Confidencial)")
         
         df_ranking = []
         ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
@@ -372,7 +420,7 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
                     "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
                     "% de Pruebas": st.column_config.ProgressColumn("Cuota de Pruebas (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Ingresos": st.column_config.ProgressColumn("Cuota de Ingresos (%)", format="%.2f%%", min_value=0, max_value=100),
-                    "% de Beneficios": st.column_config.ProgressColumn("Cuota de Beneficios (%)", format="%.2f%%", min_value=0, max_value=100)
+                    "% de Beneficios": st.column_config.ProgressColumn("Cuota de Inversión (%)", format="%.2f%%", min_value=0, max_value=100)
                 },
                 hide_index=True,
                 column_order=["Médico", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
@@ -382,9 +430,11 @@ if modulo_seleccionado == "🧬 Desempeño Médico":
             st.info("Sin datos para generar ranking.")
 
 # ==========================================
-# 5. MÓDULO 2: PRÓXIMAMENTE (EJEMPLO)
+# 5. MÓDULO 2: PRÓXIMAMENTE
 # ==========================================
-elif modulo_seleccionado == "📊 Próximo Módulo (Ejemplo)":
-    st.markdown("<h1 class='titulo-principal'>📊 Nuevo Dashboard (En Construcción)</h1>", unsafe_allow_html=True)
-    st.info("Este espacio está reservado para el nuevo módulo de análisis que agregará la dirección.")
-    st.markdown("Aquí se podrá conectar otra base de datos distinta o mostrar otras métricas sin afectar el Dashboard Médico.")
+elif modulo_seleccionado == "📊 Próximo Módulo":
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #1A365D;'>⚙️ Módulo en Construcción</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size: 1.2rem; color: #718096;'>Este espacio está reservado para futuros análisis estratégicos corporativos.</p>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
