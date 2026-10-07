@@ -89,7 +89,7 @@ st.markdown("""
         font-family: 'Arial', sans-serif;
     }
     .brand-genetics {
-        color: #87B4C2; /* Tono más claro */
+        color: #87B4C2; 
         font-size: clamp(3rem, 6.8vw, 8.3rem);
         font-weight: 700;
         letter-spacing: -0.08em;
@@ -100,7 +100,7 @@ st.markdown("""
         align-items: baseline;
     }
     .brand-country {
-        color: rgba(135, 180, 194, 0.96); /* Tono más claro, a juego con genetics */
+        color: rgba(135, 180, 194, 0.96); 
         font-size: clamp(3rem, 6.8vw, 8.3rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
@@ -504,7 +504,7 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
             
-            # MOSTRAR RANKING SIN NÚMEROS ABSOLUTOS (Oculta columna "Pruebas")
+            # MOSTRAR RANKING (Ocultamos "Pruebas" para mantener confidencialidad)
             st.dataframe(
                 df_ranking,
                 column_config={
@@ -518,10 +518,10 @@ if modulo_seleccionado == "Desempeño Médico":
                 use_container_width=True
             )
             
-            # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA ---
+            # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (CONFIDENCIAL) ---
             st.markdown("<br>", unsafe_allow_html=True)
             st.subheader("Desglose de Participación por Tipo de Prueba")
-            st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
+            st.markdown("Muestra qué tipo de prueba gestiona cada médico y la **cuota porcentual** que esto representa frente a todas las ventas nacionales de ese mismo tipo.")
             
             lista_global_prod = []
             for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
@@ -553,14 +553,14 @@ if modulo_seleccionado == "Desempeño Médico":
                 df_doc_prueba['Total Global'] = df_doc_prueba['Prueba'].map(totales_globales_producto).fillna(0)
                 df_doc_prueba['Cuota del Producto (%)'] = (df_doc_prueba['Cantidad'] / df_doc_prueba['Total Global']) * 100
                 
-                df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cantidad', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cantidad'], ascending=[True, False])
+                # Se prepara la vista ocultando la cantidad absoluta de pruebas vendidas
+                df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cuota del Producto (%)'], ascending=[True, False])
                 
                 st.dataframe(
                     df_doc_prueba_display,
                     column_config={
                         "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
                         "Prueba": st.column_config.TextColumn("Tipo de Prueba", width="medium"),
-                        "Cantidad": st.column_config.NumberColumn("Pruebas Vendidas", format="%d"),
                         "Cuota del Producto (%)": st.column_config.ProgressColumn("Participación Nacional (%)", format="%.2f%%", min_value=0, max_value=100),
                     },
                     hide_index=True,
@@ -576,7 +576,6 @@ if modulo_seleccionado == "Desempeño Médico":
 # ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
     st.markdown("<h1 class='titulo-principal'>Seguimiento y Estatus de Pruebas</h1>", unsafe_allow_html=True)
-    # --- DESCRIPCIÓN DEL MÓDULO 2 ---
     st.markdown("<p class='descripcion-modulo'>Consulte la bitácora operativa y monitoree el progreso en tiempo real de las pruebas genéticas solicitadas.</p>", unsafe_allow_html=True)
     
     if df_ventas.empty:
