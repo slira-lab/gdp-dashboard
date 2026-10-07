@@ -52,8 +52,8 @@ st.markdown("""
         width: 100%;
         display: flex;
         align-items: center;
-        justify-content: center; /* Centra los elementos y quita el espacio extremo */
-        gap: 1.5rem; /* Espacio entre Genetics y México */
+        justify-content: center;
+        gap: 1.5rem; 
         padding: 1.5rem 2rem;
         margin: 0 0 1.25rem 0;
         border-radius: 28px;
@@ -205,8 +205,8 @@ except Exception as e:
 # 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
 # ==========================================
 try:
-    # URL adaptada de Google Drive para visualización directa
-    st.sidebar.image("https://drive.google.com/uc?export=view&id=1lLfGl5e7zE6cUiCcLWtbZZkpKGGdozKM", use_container_width=True)
+    # Llama directamente al archivo local subido al repositorio
+    st.sidebar.image("logo.png", use_container_width=True)
 except:
     st.sidebar.markdown("### SouthGenetics")
 
