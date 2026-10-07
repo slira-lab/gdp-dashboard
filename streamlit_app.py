@@ -21,8 +21,15 @@ st.markdown("""
         font-family: 'Arial', sans-serif;
         font-weight: bold;
         margin-bottom: 0px;
-        padding-bottom: 15px;
+        padding-bottom: 10px;
+    }
+    .descripcion-modulo {
+        color: #B4B4B4;
+        font-size: 1.1rem;
+        margin-top: 0px;
+        margin-bottom: 25px;
         border-bottom: 1px solid #333333;
+        padding-bottom: 15px;
     }
     [data-testid="stMetric"] {
         background-color: #262730;
@@ -234,6 +241,14 @@ try:
 except:
     st.sidebar.markdown("### SouthGenetics")
 
+# --- DESCRIPCIÓN GLOBAL EN LA BARRA LATERAL ---
+st.sidebar.markdown("""
+<div style="color: #A3C1CC; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; padding: 0 5px;">
+    <strong>Sistema Integral de Inteligencia de Negocios.</strong><br>
+    Herramienta centralizada para el monitoreo estratégico de desempeño comercial y la trazabilidad operativa de pruebas genéticas.
+</div>
+""", unsafe_allow_html=True)
+
 st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio(
     "Seleccione un módulo:",
@@ -292,6 +307,8 @@ if modulo_seleccionado == "Desempeño Médico":
     """, unsafe_allow_html=True)
 
     st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
+    # --- DESCRIPCIÓN DEL MÓDULO 1 ---
+    st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -487,7 +504,6 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
             
-            # MOSTRAR RANKING (Se eliminó la columna "Pruebas" para no mostrar totales absolutos)
             st.dataframe(
                 df_ranking,
                 column_config={
@@ -506,7 +522,6 @@ if modulo_seleccionado == "Desempeño Médico":
             st.subheader("Desglose de Participación por Tipo de Prueba")
             st.markdown("Muestra qué porcentaje de **todas las pruebas de un tipo específico** vendidas a nivel nacional, fue generado por este médico.")
             
-            # 1. Calcular el total global REAL de cada producto usando el dataframe sin filtros (df_fact)
             lista_global_prod = []
             for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
                 if f'Producto {mes}' in df_fact.columns and f'Cantidad {mes}' in df_fact.columns:
@@ -519,7 +534,6 @@ if modulo_seleccionado == "Desempeño Médico":
             df_global_prod = df_global_prod[(df_global_prod['Producto'] != '0') & (df_global_prod['Producto'] != '')]
             totales_globales_producto = df_global_prod.groupby('Producto')['Cantidad'].sum().to_dict()
 
-            # 2. Extraer las ventas específicas del médico seleccionado (o todos si no hay filtro)
             lista_todas_ventas = []
             for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
                 if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
@@ -532,15 +546,12 @@ if modulo_seleccionado == "Desempeño Médico":
                 df_todas_ventas['Prueba'] = df_todas_ventas['Prueba'].astype(str).str.strip()
                 df_todas_ventas = df_todas_ventas[(df_todas_ventas['Prueba'] != '0') & (df_todas_ventas['Prueba'] != '')]
                 
-                # Agrupar por médico y prueba
                 df_doc_prueba = df_todas_ventas.groupby(['Médico', 'Prueba'])['Cantidad'].sum().reset_index()
                 df_doc_prueba = df_doc_prueba[df_doc_prueba['Cantidad'] > 0]
                 
-                # Calcular el porcentaje en base al mercado global de esa prueba
                 df_doc_prueba['Total Global'] = df_doc_prueba['Prueba'].map(totales_globales_producto).fillna(0)
                 df_doc_prueba['Cuota del Producto (%)'] = (df_doc_prueba['Cantidad'] / df_doc_prueba['Total Global']) * 100
                 
-                # Preparar para mostrar (se ocultan los números absolutos)
                 df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cuota del Producto (%)'], ascending=[True, False])
                 
                 st.dataframe(
@@ -563,6 +574,8 @@ if modulo_seleccionado == "Desempeño Médico":
 # ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
     st.markdown("<h1 class='titulo-principal'>Seguimiento y Estatus de Pruebas</h1>", unsafe_allow_html=True)
+    # --- DESCRIPCIÓN DEL MÓDULO 2 ---
+    st.markdown("<p class='descripcion-modulo'>Consulte la bitácora operativa y monitoree el progreso en tiempo real de las pruebas genéticas solicitadas.</p>", unsafe_allow_html=True)
     
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
