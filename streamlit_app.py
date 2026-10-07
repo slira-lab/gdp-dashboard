@@ -205,8 +205,8 @@ except Exception as e:
 # 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
 # ==========================================
 try:
-    # Llama directamente al archivo local subido al repositorio
-    st.sidebar.image("logo.png", use_container_width=True)
+    # Llama directamente al archivo de imagen que subiste a GitHub
+    st.sidebar.image("LOGO SG (1) (2) (1).png", use_container_width=True)
 except:
     st.sidebar.markdown("### SouthGenetics")
 
