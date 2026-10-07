@@ -84,14 +84,14 @@ st.markdown("""
     }
     .brand-south {
         color: #C9CED0;
-        font-size: clamp(2.6rem, 6vw, 7.4rem);
+        font-size: clamp(2.8rem, 6.4vw, 8rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(2.6rem, 6vw, 7.4rem);
+        font-size: clamp(2.8rem, 6.4vw, 8rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
@@ -106,7 +106,7 @@ st.markdown("""
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.96);
-        font-size: clamp(2.6rem, 6vw, 7.4rem);
+        font-size: clamp(2.8rem, 6.4vw, 8rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         font-weight: 400;
