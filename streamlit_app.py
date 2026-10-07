@@ -308,7 +308,7 @@ if modulo_seleccionado == "Desempeño Médico":
 
     st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
     # --- DESCRIPCIÓN DEL MÓDULO 1 ---
-    st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='descripcion-modulo'>Analisis del impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -462,7 +462,7 @@ if modulo_seleccionado == "Desempeño Médico":
 
     # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
     with tab3:
-        st.subheader("Ranking de Médicos (100% Confidencial)")
+        st.subheader("Ranking de Médicos")
         
         # --- RECUADRO DE REPRESENTACIÓN (CON NÚMEROS ABSOLUTOS) ---
         st.markdown(f"""
