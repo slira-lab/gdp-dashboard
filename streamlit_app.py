@@ -48,7 +48,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. CONEXIÓN A DATOS Y CORRECCIÓN
+# 2. CONEXIÓN A DATOS, MONEDA Y MAPAS BLINDADA
 # ==========================================
 @st.cache_data(ttl=600)
 def load_data():
@@ -138,7 +138,7 @@ except Exception as e:
     st.stop()
 
 # ==========================================
-# 3. BARRA LATERAL
+# 3. BARRA LATERAL (CON BOTÓN DE ACTUALIZACIÓN)
 # ==========================================
 try:
     st.sidebar.image("LOGO SG (1) (2).png", use_container_width=True)
@@ -146,6 +146,13 @@ except:
     st.sidebar.markdown("### SouthGenetics")
 
 st.sidebar.markdown("---")
+
+# --- BOTÓN PARA VACIAR CACHÉ Y ACTUALIZAR DATOS ---
+if st.sidebar.button("🔄 Actualizar Datos", use_container_width=True, help="Haz clic para forzar la descarga de datos nuevos desde Google Sheets"):
+    st.cache_data.clear() # Limpia la memoria
+    st.rerun() # Reinicia la aplicación
+
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
 st.sidebar.title("Filtro Ejecutivo")
 lista_medicos = ["Todos"] + df_medicos['NOMBRE'].unique().tolist()
 medico_seleccionado = st.sidebar.selectbox("Seleccione un Médico", lista_medicos)
@@ -325,11 +332,10 @@ with tab2:
 
 # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
 with tab3:
-    st.subheader("🏆 Ranking de Médicos")
+    st.subheader("🏆 Ranking de Médicos (100% Confidencial)")
     
     df_ranking = []
     
-    # Cálculos globales para sacar el porcentaje exacto de todo
     ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
     inversion_cols = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
     inversion_global = df_fact[inversion_cols].sum().sum() if inversion_cols else 0
@@ -353,7 +359,6 @@ with tab3:
     df_ranking = pd.DataFrame(df_ranking).groupby('Médico').sum().reset_index()
     
     if not df_ranking.empty:
-        # Se calculan los porcentajes de cada categoría
         df_ranking['% de Pruebas'] = (df_ranking['Pruebas'] / pruebas_global) * 100 if pruebas_global > 0 else 0
         df_ranking['% de Ingresos'] = (df_ranking['Ingreso ($)'] / ingreso_global) * 100 if ingreso_global > 0 else 0
         df_ranking['% de Beneficios'] = (df_ranking['Beneficio ($)'] / inversion_global) * 100 if inversion_global > 0 else 0
