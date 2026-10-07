@@ -89,7 +89,7 @@ st.markdown("""
         font-family: 'Arial', sans-serif;
     }
     .brand-genetics {
-        color: #5C95A6;
+        color: #87B4C2; /* Tono más claro */
         font-size: clamp(3rem, 6.8vw, 8.3rem);
         font-weight: 700;
         letter-spacing: -0.08em;
@@ -100,7 +100,7 @@ st.markdown("""
         align-items: baseline;
     }
     .brand-country {
-        color: rgba(91, 135, 148, 0.96);
+        color: rgba(135, 180, 194, 0.96); /* Tono más claro, a juego con genetics */
         font-size: clamp(3rem, 6.8vw, 8.3rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
@@ -308,7 +308,7 @@ if modulo_seleccionado == "Desempeño Médico":
 
     st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
     # --- DESCRIPCIÓN DEL MÓDULO 1 ---
-    st.markdown("<p class='descripcion-modulo'>Analisis del impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -462,14 +462,14 @@ if modulo_seleccionado == "Desempeño Médico":
 
     # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
     with tab3:
-        st.subheader("Ranking de Médicos")
+        st.subheader("Ranking de Médicos (100% Confidencial)")
         
-        # --- RECUADRO DE REPRESENTACIÓN (CON NÚMEROS ABSOLUTOS) ---
+        # --- RECUADRO DE REPRESENTACIÓN (SIN NÚMEROS ABSOLUTOS) ---
         st.markdown(f"""
         <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
             <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
             <p style="margin: 5px 0 0 0; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">
-                {porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa ({int(pruebas_totales)} de {int(pruebas_global)} pruebas)</span>
+                {porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span>
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -504,22 +504,21 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
             
-            # MOSTRAR RANKING CON NÚMEROS ABSOLUTOS ("Total Pruebas")
+            # MOSTRAR RANKING SIN NÚMEROS ABSOLUTOS (Oculta columna "Pruebas")
             st.dataframe(
                 df_ranking,
                 column_config={
                     "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
-                    "Pruebas": st.column_config.NumberColumn("Total Pruebas", format="%d"),
                     "% de Pruebas": st.column_config.ProgressColumn("Cuota de Pruebas (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Ingresos": st.column_config.ProgressColumn("Cuota de Ingresos (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Beneficios": st.column_config.ProgressColumn("Cuota de Beneficios (%)", format="%.2f%%", min_value=0, max_value=100)
                 },
                 hide_index=True,
-                column_order=["Médico", "Pruebas", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
+                column_order=["Médico", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
                 use_container_width=True
             )
             
-            # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (RESTITUIDA CON COLUMNA "CANTIDAD") ---
+            # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA ---
             st.markdown("<br>", unsafe_allow_html=True)
             st.subheader("Desglose de Participación por Tipo de Prueba")
             st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
