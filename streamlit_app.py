@@ -72,21 +72,26 @@ st.markdown("""
         white-space: nowrap;
         overflow: visible;
     }
+    .brand-south,
+    .brand-genetics {
+        display: inline-block;
+        white-space: nowrap;
+        flex-shrink: 0;
+        line-height: 0.72;
+    }
     .brand-south {
         color: #C9CED0;
-        font-size: clamp(5rem, 9vw, 15rem);
+        font-size: clamp(4rem, 7vw, 12rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
-        line-height: 0.7;
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(5rem, 9vw, 15rem);
+        font-size: clamp(4rem, 7vw, 12rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
-        line-height: 0.7;
     }
     .brand-right {
         display: flex;
@@ -95,10 +100,11 @@ st.markdown("""
         gap: 0.35rem;
         flex: 0 0 auto;
         overflow: visible;
+        margin-left: 0.75rem;
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.96);
-        font-size: clamp(3rem, 5vw, 7.5rem);
+        font-size: clamp(2.2rem, 3.2vw, 6rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         font-weight: 400;
@@ -106,6 +112,7 @@ st.markdown("""
         line-height: 0.8;
         transform: translateY(-0.05em);
         white-space: nowrap;
+        margin-right: 0.15rem;
     }
     .brand-molecule {
         position: relative;
@@ -113,7 +120,8 @@ st.markdown("""
         min-width: 150px;
         height: 120px;
         flex: 0 0 auto;
-        transform: scale(1.08);
+        transform: scale(0.92);
+        transform-origin: left center;
         filter: drop-shadow(0 0 8px rgba(92,149,166,0.2));
     }
     .brand-node {
@@ -160,7 +168,7 @@ st.markdown("""
             transform: none;
         }
         .brand-molecule {
-            transform: scale(1);
+            transform: scale(0.88);
         }
     }
 </style>
