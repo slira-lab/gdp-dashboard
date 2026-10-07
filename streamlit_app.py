@@ -272,7 +272,6 @@ if modulo_seleccionado == "Desempeño Médico":
     pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
     porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
-    # Lógica para determinar si cuenta con beneficios (basado en si hay monto de inversión registrado)
     inversion_cols_top = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
     inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
     
@@ -448,12 +447,12 @@ if modulo_seleccionado == "Desempeño Médico":
     with tab3:
         st.subheader("Ranking de Médicos (100% Confidencial)")
         
-        # --- NUEVO RECUADRO DE PARTICIPACIÓN DEL RANKING ---
+        # --- RECUADRO DE REPRESENTACIÓN (SIN NÚMEROS ABSOLUTOS) ---
         st.markdown(f"""
         <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
             <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
             <p style="margin: 5px 0 0 0; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">
-                {porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa ({int(pruebas_totales)} de {int(pruebas_global)} pruebas)</span>
+                {porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span>
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -488,20 +487,74 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
             
-            # Se agregó la columna "Pruebas" para ver el número absoluto además de los porcentajes
+            # MOSTRAR RANKING (Se eliminó la columna "Pruebas" para no mostrar totales absolutos)
             st.dataframe(
                 df_ranking,
                 column_config={
                     "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
-                    "Pruebas": st.column_config.NumberColumn("Total Pruebas", format="%d"),
                     "% de Pruebas": st.column_config.ProgressColumn("Cuota de Pruebas (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Ingresos": st.column_config.ProgressColumn("Cuota de Ingresos (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Beneficios": st.column_config.ProgressColumn("Cuota de Beneficios (%)", format="%.2f%%", min_value=0, max_value=100)
                 },
                 hide_index=True,
-                column_order=["Médico", "Pruebas", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
+                column_order=["Médico", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
                 use_container_width=True
             )
+            
+            # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA ---
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("Desglose de Participación por Tipo de Prueba")
+            st.markdown("Muestra qué porcentaje de **todas las pruebas de un tipo específico** vendidas a nivel nacional, fue generado por este médico.")
+            
+            # 1. Calcular el total global REAL de cada producto usando el dataframe sin filtros (df_fact)
+            lista_global_prod = []
+            for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+                if f'Producto {mes}' in df_fact.columns and f'Cantidad {mes}' in df_fact.columns:
+                    temp = df_fact[[f'Producto {mes}', f'Cantidad {mes}']].copy()
+                    temp.columns = ['Producto', 'Cantidad']
+                    lista_global_prod.append(temp)
+            
+            df_global_prod = pd.concat(lista_global_prod).dropna()
+            df_global_prod['Producto'] = df_global_prod['Producto'].astype(str).str.strip()
+            df_global_prod = df_global_prod[(df_global_prod['Producto'] != '0') & (df_global_prod['Producto'] != '')]
+            totales_globales_producto = df_global_prod.groupby('Producto')['Cantidad'].sum().to_dict()
+
+            # 2. Extraer las ventas específicas del médico seleccionado (o todos si no hay filtro)
+            lista_todas_ventas = []
+            for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+                if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
+                    temp = df_fact_filtrado[['NOMBRE', f'Producto {mes}', f'Cantidad {mes}']].copy()
+                    temp.columns = ['Médico', 'Prueba', 'Cantidad']
+                    lista_todas_ventas.append(temp)
+            
+            if lista_todas_ventas:
+                df_todas_ventas = pd.concat(lista_todas_ventas).dropna()
+                df_todas_ventas['Prueba'] = df_todas_ventas['Prueba'].astype(str).str.strip()
+                df_todas_ventas = df_todas_ventas[(df_todas_ventas['Prueba'] != '0') & (df_todas_ventas['Prueba'] != '')]
+                
+                # Agrupar por médico y prueba
+                df_doc_prueba = df_todas_ventas.groupby(['Médico', 'Prueba'])['Cantidad'].sum().reset_index()
+                df_doc_prueba = df_doc_prueba[df_doc_prueba['Cantidad'] > 0]
+                
+                # Calcular el porcentaje en base al mercado global de esa prueba
+                df_doc_prueba['Total Global'] = df_doc_prueba['Prueba'].map(totales_globales_producto).fillna(0)
+                df_doc_prueba['Cuota del Producto (%)'] = (df_doc_prueba['Cantidad'] / df_doc_prueba['Total Global']) * 100
+                
+                # Preparar para mostrar (se ocultan los números absolutos)
+                df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cuota del Producto (%)'], ascending=[True, False])
+                
+                st.dataframe(
+                    df_doc_prueba_display,
+                    column_config={
+                        "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
+                        "Prueba": st.column_config.TextColumn("Tipo de Prueba", width="medium"),
+                        "Cuota del Producto (%)": st.column_config.ProgressColumn("Participación Nacional de esta prueba (%)", format="%.2f%%", min_value=0, max_value=100),
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+            else:
+                st.info("No hay datos de pruebas detalladas para este médico.")
         else:
             st.info("Sin datos para generar ranking.")
 
@@ -514,7 +567,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
     else:
-        # 1. Limpiar y calcular el estado actual de cada prueba
         status_cols = [c for c in df_ventas.columns if 'STATUS' in c]
         fecha_cols = [c for c in df_ventas.columns if 'FECHA' in c]
         
@@ -527,7 +579,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas['ESTADO_ACTUAL'] = df_ventas.apply(get_current_status, axis=1)
         
-        # 2. Mapear estado interno a las 4 categorías del Tracker
         def map_status_category(estado):
             estado = str(estado).upper()
             if any(x in estado for x in ['PROSPECTO', 'SOLICITUD', 'CANCELADA', 'PENDIENTE']):
@@ -538,11 +589,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 return "En Laboratorio"
             elif any(x in estado for x in ['RESULTADO', 'LISTO', 'COMPLETADO', 'FINALIZADO']):
                 return "Resultado Listo"
-            return "Pendiente de Toma" # Por defecto
+            return "Pendiente de Toma"
             
         df_ventas['CATEGORIA_ESTADO'] = df_ventas['ESTADO_ACTUAL'].apply(map_status_category)
         
-        # 3. Filtros rápidos (Top)
         st.markdown("<br>", unsafe_allow_html=True)
         filtro_estado = st.radio(
             "Filtros rápido:",
@@ -558,13 +608,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         lista_pacientes = df_filtrado['PACIENTE'].dropna().unique().tolist()
         lista_pacientes = [p for p in lista_pacientes if str(p).strip() and str(p).upper() != 'NAN']
         
-        # 4. Buscador de Paciente
         col_search, _ = st.columns([2, 1])
         with col_search:
             paciente_seleccionado = st.selectbox("Búsqueda por Paciente", ["Seleccione un paciente..."] + sorted(lista_pacientes))
             
         if paciente_seleccionado != "Seleccione un paciente...":
-            # Extraer los datos del paciente seleccionado
             datos_paciente = df_ventas[df_ventas['PACIENTE'] == paciente_seleccionado].iloc[-1]
             
             st.markdown("<hr>", unsafe_allow_html=True)
@@ -575,7 +623,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
-                # Configuración de los Pasos (Stepper)
                 etapas = ["Pendiente de Toma", "En Tránsito", "En Laboratorio", "Resultado Listo"]
                 etapas_labels = ["Toma de Muestra", "Envíado / Courier", "En Laboratorio / Análisis", "Resultado Listo"]
                 cat_actual = datos_paciente['CATEGORIA_ESTADO']
@@ -620,7 +667,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 """
                 st.markdown(html_detalles, unsafe_allow_html=True)
                 
-            # 5. Tabla Histórica / Bitácora
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
             
