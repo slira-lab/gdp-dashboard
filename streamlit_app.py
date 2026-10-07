@@ -572,60 +572,44 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 cat_actual = datos_paciente['CATEGORIA_ESTADO']
                 idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
                 
-                # Barra de Progreso Dinámica mediante HTML/CSS
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
                 
+                # Barra de Progreso SIN indentación para evitar que Streamlit lo lea como código
                 html_stepper = f"""
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
-                    <!-- Linea de fondo (Gris) -->
-                    <div style="position: absolute; top: 17px; left: 12.5%; width: 75%; height: 4px; background-color: #333333; z-index: 0;"></div>
-                    <!-- Linea de progreso (Color marca) -->
-                    <div style="position: absolute; top: 17px; left: 12.5%; width: {progress_percentage * 0.75}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
-                """
-
+<div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
+<div style="position: absolute; top: 17px; left: 12.5%; width: 75%; height: 4px; background-color: #333333; z-index: 0;"></div>
+<div style="position: absolute; top: 17px; left: 12.5%; width: {progress_percentage * 0.75}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
+"""
                 for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
-                        # Completado
-                        icon = "✔"
-                        color = "#5C95A6"
-                        text_color = "#FFFFFF"
-                        sub_text = "Completado"
+                        icon, color, text_color, sub_text = "✔", "#5C95A6", "#FFFFFF", "Completado"
                     elif i == idx_actual:
-                        # Actual
-                        icon = "●"
-                        color = "#FF9F1C"
-                        text_color = "#FF9F1C"
-                        sub_text = "En Proceso"
+                        icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
                     else:
-                        # Pendiente
-                        icon = ""
-                        color = "#333333"
-                        text_color = "#888888"
-                        sub_text = "Pendiente"
+                        icon, color, text_color, sub_text = "", "#333333", "#888888", "Pendiente"
                         
                     html_stepper += f"""
-                    <div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
-                        <div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 16px; font-weight: bold; margin-bottom: 12px;">{icon}</div>
-                        <div style="font-weight: bold; color: {text_color}; font-size: 13px; text-align: center; line-height: 1.2;">{label}</div>
-                        <div style="color: {text_color}; font-size: 11px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
-                    </div>
-                    """
+<div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
+<div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 16px; font-weight: bold; margin-bottom: 12px;">{icon}</div>
+<div style="font-weight: bold; color: {text_color}; font-size: 13px; text-align: center; line-height: 1.2;">{label}</div>
+<div style="color: {text_color}; font-size: 11px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
+</div>
+"""
                 html_stepper += "</div>"
                 st.markdown(html_stepper, unsafe_allow_html=True)
                 
             with col_details:
-                # Tarjeta de Detalles del paciente (UI Card)
                 html_detalles = f"""
-                <div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
-                    <h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
-                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
-                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
-                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
-                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
-                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
-                    <p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
-                </div>
-                """
+<div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
+<h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
+<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
+<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
+<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
+<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
+<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
+<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
+</div>
+"""
                 st.markdown(html_detalles, unsafe_allow_html=True)
                 
             # 5. Tabla Histórica / Bitácora
@@ -633,13 +617,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
             
             historial = []
-            # Recopilar todo el registro histórico de esa fila iterando fechas y estados
             for f_col, s_col in zip(fecha_cols, status_cols):
                 fecha_val = str(datos_paciente.get(f_col, '')).strip()
                 status_val = str(datos_paciente.get(s_col, '')).strip()
                 if status_val and status_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
-                    
-                    # Dividir Fecha y Hora si están disponibles en el formato
                     if ' ' in fecha_val:
                         fecha_limpia = fecha_val.split()[0]
                         hora_limpia = fecha_val.split()[1][:5]
@@ -657,7 +638,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     
             if historial:
                 df_historial = pd.DataFrame(historial)
-                # Ordenar cronológicamente (asumiendo que las fechas vienen en formato ordenable)
                 st.dataframe(df_historial, use_container_width=True, hide_index=True)
             else:
                 st.info("No hay historial registrado en la bitácora para esta prueba.")
