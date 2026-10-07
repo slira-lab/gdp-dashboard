@@ -205,8 +205,8 @@ except Exception as e:
 # 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
 # ==========================================
 try:
-    # Pega aquí el link directo de la imagen de tu logo en internet
-    st.sidebar.image("https://drive.google.com/file/d/1lLfGl5e7zE6cUiCcLWtbZZkpKGGdozKM/view?usp=sharing", use_container_width=True)
+    # URL adaptada de Google Drive para visualización directa
+    st.sidebar.image("https://drive.google.com/uc?export=view&id=1lLfGl5e7zE6cUiCcLWtbZZkpKGGdozKM", use_container_width=True)
 except:
     st.sidebar.markdown("### SouthGenetics")
 
