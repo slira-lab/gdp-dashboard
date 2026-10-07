@@ -201,7 +201,6 @@ def load_data():
                 
         df_ventas = pd.DataFrame(datos_ventas[idx_ven+1:], columns=new_headers)
     except Exception as e:
-        # Respaldo: Lee el archivo local de Excel si aún no está en Sheets
         try:
             df_ventas = pd.read_excel("Puente_Dashboard_Medicos (3).xlsx", sheet_name="VENTAS", header=2)
             df_ventas.columns = df_ventas.columns.str.upper()
@@ -231,7 +230,6 @@ except Exception as e:
 # 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
 # ==========================================
 try:
-    # Llama directamente al archivo local subido al repositorio
     st.sidebar.image("LOGO SG (1) (2) (1).png", use_container_width=True)
 except:
     st.sidebar.markdown("### SouthGenetics")
@@ -450,6 +448,16 @@ if modulo_seleccionado == "Desempeño Médico":
     with tab3:
         st.subheader("Ranking de Médicos (100% Confidencial)")
         
+        # --- NUEVO RECUADRO DE PARTICIPACIÓN DEL RANKING ---
+        st.markdown(f"""
+        <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
+            <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
+            <p style="margin: 5px 0 0 0; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">
+                {porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa ({int(pruebas_totales)} de {int(pruebas_global)} pruebas)</span>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         df_ranking = []
         ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
         inversion_cols = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
@@ -480,16 +488,18 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
             
+            # Se agregó la columna "Pruebas" para ver el número absoluto además de los porcentajes
             st.dataframe(
                 df_ranking,
                 column_config={
                     "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
+                    "Pruebas": st.column_config.NumberColumn("Total Pruebas", format="%d"),
                     "% de Pruebas": st.column_config.ProgressColumn("Cuota de Pruebas (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Ingresos": st.column_config.ProgressColumn("Cuota de Ingresos (%)", format="%.2f%%", min_value=0, max_value=100),
                     "% de Beneficios": st.column_config.ProgressColumn("Cuota de Beneficios (%)", format="%.2f%%", min_value=0, max_value=100)
                 },
                 hide_index=True,
-                column_order=["Médico", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
+                column_order=["Médico", "Pruebas", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
                 use_container_width=True
             )
         else:
@@ -509,7 +519,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         fecha_cols = [c for c in df_ventas.columns if 'FECHA' in c]
         
         def get_current_status(row):
-            # Recorre las columnas de estado de atrás hacia adelante para encontrar el último registrado
             for sc in reversed(status_cols):
                 val = str(row.get(sc, '')).strip()
                 if val and val.upper() not in ['NAN', 'NONE', 'NAT', '']:
@@ -574,7 +583,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
                 
-                # Barra de Progreso SIN indentación para evitar que Streamlit lo lea como código
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
 <div style="position: absolute; top: 17px; left: 12.5%; width: 75%; height: 4px; background-color: #333333; z-index: 0;"></div>
