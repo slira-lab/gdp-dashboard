@@ -54,7 +54,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 2rem;
+        gap: 1.5rem;
         padding: 1.5rem 2rem;
         margin: 0 0 1.25rem 0;
         border-radius: 28px;
@@ -84,14 +84,14 @@ st.markdown("""
     }
     .brand-south {
         color: #C9CED0;
-        font-size: clamp(3rem, 8vw, 9rem);
+        font-size: clamp(2.6rem, 6vw, 7.4rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(3rem, 8vw, 9rem);
+        font-size: clamp(2.6rem, 6vw, 7.4rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
@@ -106,7 +106,7 @@ st.markdown("""
     }
     .brand-country {
         color: rgba(91, 135, 148, 0.96);
-        font-size: clamp(3rem, 8vw, 9rem);
+        font-size: clamp(2.6rem, 6vw, 7.4rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         font-weight: 400;
