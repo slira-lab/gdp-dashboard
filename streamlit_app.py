@@ -148,7 +148,7 @@ except:
 st.sidebar.markdown("---")
 
 # --- BOTÓN PARA VACIAR CACHÉ Y ACTUALIZAR DATOS ---
-if st.sidebar.button("🔄 Actualizar Datos", use_container_width=True, help="Haz clic para forzar la descarga de datos nuevos desde Google Sheets"):
+if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Haz clic para forzar la descarga de datos nuevos desde Google Sheets"):
     st.cache_data.clear() # Limpia la memoria
     st.rerun() # Reinicia la aplicación
 
