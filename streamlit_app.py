@@ -8,7 +8,7 @@ import json
 import requests
 
 # ==========================================
-# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
+# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO 
 # ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
