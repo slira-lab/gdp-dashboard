@@ -54,10 +54,10 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        gap: 0.2rem;
-        padding: 0.5rem 1rem 0.7rem 1rem;
+        gap: 0.1rem;
+        padding: 0.35rem 0.9rem 0.5rem 0.9rem;
         margin: 0 0 1.25rem 0;
-        border-radius: 18px;
+        border-radius: 28px;
         border: 1px solid rgba(92,149,166,0.25);
         background: linear-gradient(90deg, rgba(18,26,35,0.96), rgba(11,18,23,0.92));
         overflow: hidden;
@@ -74,8 +74,8 @@ st.markdown("""
         overflow: visible;
     }
     .brand-south {
-        color: #B4B8BA;
-        font-size: clamp(5rem, 9vw, 17rem);
+        color: #B7BBB8;
+        font-size: clamp(5rem, 9vw, 16rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
@@ -83,32 +83,32 @@ st.markdown("""
     }
     .brand-genetics {
         color: #5C95A6;
-        font-size: clamp(5rem, 9vw, 17rem);
+        font-size: clamp(5rem, 9vw, 16rem);
         font-weight: 700;
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
         line-height: 0.7;
     }
     .brand-country {
-        color: rgba(91, 135, 148, 0.9);
-        font-size: clamp(3.2rem, 5vw, 8.5rem);
+        color: rgba(91, 135, 148, 0.92);
+        font-size: clamp(3.1rem, 5vw, 8rem);
         font-family: 'Georgia', 'Times New Roman', serif;
         font-style: italic;
         font-weight: 400;
         letter-spacing: -0.04em;
         white-space: nowrap;
-        margin-left: -0.2rem;
-        margin-right: 0.2rem;
+        margin-left: -0.18rem;
+        margin-right: 0.35rem;
         transform: translateY(18px);
-        line-height: 0.8;
+        line-height: 0.75;
     }
     .brand-molecule {
         position: relative;
-        width: 190px;
-        min-width: 190px;
+        width: 180px;
+        min-width: 180px;
         height: 150px;
         flex: 0 0 auto;
-        transform: scale(1.12) translateY(10px);
+        transform: scale(1.14) translateY(6px);
         filter: drop-shadow(0 0 8px rgba(92,149,166,0.2));
     }
     .brand-node {
