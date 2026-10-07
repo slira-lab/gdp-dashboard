@@ -308,7 +308,7 @@ if modulo_seleccionado == "Desempeño Médico":
 
     st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
     # --- DESCRIPCIÓN DEL MÓDULO 1 ---
-    st.markdown("<p class='descripcion-modulo'>Analisis del impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -464,7 +464,7 @@ if modulo_seleccionado == "Desempeño Médico":
     with tab3:
         st.subheader("Ranking de Médicos (100% Confidencial)")
         
-        # --- RECUADRO DE REPRESENTACIÓN (RESTAURADO CON TOTALES ABSOLUTOS) ---
+        # --- RECUADRO DE REPRESENTACIÓN (CON NÚMEROS ABSOLUTOS) ---
         st.markdown(f"""
         <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
             <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
@@ -504,7 +504,7 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
             
-            # MOSTRAR RANKING (Restaurada la columna "Pruebas" absolutas)
+            # MOSTRAR RANKING CON NÚMEROS ABSOLUTOS ("Total Pruebas")
             st.dataframe(
                 df_ranking,
                 column_config={
@@ -518,6 +518,57 @@ if modulo_seleccionado == "Desempeño Médico":
                 column_order=["Médico", "Pruebas", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
                 use_container_width=True
             )
+            
+            # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (RESTITUIDA CON COLUMNA "CANTIDAD") ---
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("Desglose de Participación por Tipo de Prueba")
+            st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
+            
+            lista_global_prod = []
+            for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+                if f'Producto {mes}' in df_fact.columns and f'Cantidad {mes}' in df_fact.columns:
+                    temp = df_fact[[f'Producto {mes}', f'Cantidad {mes}']].copy()
+                    temp.columns = ['Producto', 'Cantidad']
+                    lista_global_prod.append(temp)
+            
+            df_global_prod = pd.concat(lista_global_prod).dropna()
+            df_global_prod['Producto'] = df_global_prod['Producto'].astype(str).str.strip()
+            df_global_prod = df_global_prod[(df_global_prod['Producto'] != '0') & (df_global_prod['Producto'] != '')]
+            totales_globales_producto = df_global_prod.groupby('Producto')['Cantidad'].sum().to_dict()
+
+            lista_todas_ventas = []
+            for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
+                if f'Producto {mes}' in df_fact_filtrado.columns and f'Cantidad {mes}' in df_fact_filtrado.columns:
+                    temp = df_fact_filtrado[['NOMBRE', f'Producto {mes}', f'Cantidad {mes}']].copy()
+                    temp.columns = ['Médico', 'Prueba', 'Cantidad']
+                    lista_todas_ventas.append(temp)
+            
+            if lista_todas_ventas:
+                df_todas_ventas = pd.concat(lista_todas_ventas).dropna()
+                df_todas_ventas['Prueba'] = df_todas_ventas['Prueba'].astype(str).str.strip()
+                df_todas_ventas = df_todas_ventas[(df_todas_ventas['Prueba'] != '0') & (df_todas_ventas['Prueba'] != '')]
+                
+                df_doc_prueba = df_todas_ventas.groupby(['Médico', 'Prueba'])['Cantidad'].sum().reset_index()
+                df_doc_prueba = df_doc_prueba[df_doc_prueba['Cantidad'] > 0]
+                
+                df_doc_prueba['Total Global'] = df_doc_prueba['Prueba'].map(totales_globales_producto).fillna(0)
+                df_doc_prueba['Cuota del Producto (%)'] = (df_doc_prueba['Cantidad'] / df_doc_prueba['Total Global']) * 100
+                
+                df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cantidad', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cantidad'], ascending=[True, False])
+                
+                st.dataframe(
+                    df_doc_prueba_display,
+                    column_config={
+                        "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
+                        "Prueba": st.column_config.TextColumn("Tipo de Prueba", width="medium"),
+                        "Cantidad": st.column_config.NumberColumn("Pruebas Vendidas", format="%d"),
+                        "Cuota del Producto (%)": st.column_config.ProgressColumn("Participación Nacional (%)", format="%.2f%%", min_value=0, max_value=100),
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+            else:
+                st.info("No hay datos de pruebas detalladas para este médico.")
         else:
             st.info("Sin datos para generar ranking.")
 
