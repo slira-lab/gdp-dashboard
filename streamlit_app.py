@@ -38,7 +38,6 @@ st.markdown("""
         padding: 15px 20px;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
     }
-    /* CORRECCIÓN: Ajuste para que los textos largos no se corten */
     [data-testid="stMetricValue"] {
         font-size: 1.3rem !important; 
         color: #FFFFFF !important;
@@ -350,7 +349,6 @@ if modulo_seleccionado == "Desempeño Médico":
         """, unsafe_allow_html=True)
 
         st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
-        # --- DESCRIPCIÓN DEL MÓDULO 1 ---
         st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -507,7 +505,6 @@ if modulo_seleccionado == "Desempeño Médico":
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
             
-            # --- RECUADRO DE REPRESENTACIÓN (SIN NÚMEROS ABSOLUTOS) ---
             st.markdown(f"""
             <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
                 <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
@@ -547,7 +544,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 
                 df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
                 
-                # MOSTRAR RANKING (Ocultamos "Pruebas" para mantener confidencialidad)
+                # Ranking (Sin conteo absoluto)
                 st.dataframe(
                     df_ranking,
                     column_config={
@@ -561,10 +558,10 @@ if modulo_seleccionado == "Desempeño Médico":
                     use_container_width=True
                 )
                 
-                # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (CONFIDENCIAL) ---
+                # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (Restaurada la columna de cantidad) ---
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.subheader("Desglose de Participación por Tipo de Prueba")
-                st.markdown("Muestra qué tipo de prueba gestiona cada médico y la **cuota porcentual** que esto representa frente a todas las ventas nacionales de ese mismo tipo.")
+                st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
                 
                 lista_global_prod = []
                 for mes in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']:
@@ -596,14 +593,15 @@ if modulo_seleccionado == "Desempeño Médico":
                     df_doc_prueba['Total Global'] = df_doc_prueba['Prueba'].map(totales_globales_producto).fillna(0)
                     df_doc_prueba['Cuota del Producto (%)'] = (df_doc_prueba['Cantidad'] / df_doc_prueba['Total Global']) * 100
                     
-                    # Se prepara la vista ocultando la cantidad absoluta de pruebas vendidas
-                    df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cuota del Producto (%)'], ascending=[True, False])
+                    # RESTAURADO: Se agrega "Cantidad" a la vista
+                    df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cantidad', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cantidad'], ascending=[True, False])
                     
                     st.dataframe(
                         df_doc_prueba_display,
                         column_config={
                             "Médico": st.column_config.TextColumn("Nombre del Médico", width="medium"),
                             "Prueba": st.column_config.TextColumn("Tipo de Prueba", width="medium"),
+                            "Cantidad": st.column_config.NumberColumn("Pruebas Vendidas", format="%d"),
                             "Cuota del Producto (%)": st.column_config.ProgressColumn("Participación Nacional (%)", format="%.2f%%", min_value=0, max_value=100),
                         },
                         hide_index=True,
