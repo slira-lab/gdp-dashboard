@@ -38,14 +38,20 @@ st.markdown("""
         padding: 15px 20px;
         box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
     }
+    /* CORRECCIÓN: Ajuste para que los textos largos no se corten */
     [data-testid="stMetricValue"] {
-        font-size: 1.5rem !important;
+        font-size: 1.3rem !important; 
         color: #FFFFFF !important;
         white-space: normal !important;
-        line-height: 1.2 !important;
+        line-height: 1.3 !important;
+        overflow-wrap: break-word !important;
     }
-    [data-testid="stMetricValue"] > div {
+    [data-testid="stMetricValue"] > div, 
+    [data-testid="stMetricValue"] span,
+    [data-testid="stMetricValue"] label {
         white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
     [data-testid="stMetricLabel"] {
         font-size: 1rem !important;
@@ -287,7 +293,7 @@ if modulo_seleccionado == "Desempeño Médico":
             pwd = st.text_input("Ingrese su contraseña de acceso:", type="password")
             
             if st.button("Desbloquear Dashboard", use_container_width=True):
-                # Contraseña de acceso (puedes cambiarla aquí)
+                # Contraseña de acceso
                 if pwd == "South2026": 
                     st.session_state["acceso_modulo_1"] = True
                     st.rerun()
@@ -541,7 +547,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 
                 df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
                 
-                # MOSTRAR RANKING SIN NÚMEROS ABSOLUTOS (Oculta columna "Pruebas")
+                # MOSTRAR RANKING (Ocultamos "Pruebas" para mantener confidencialidad)
                 st.dataframe(
                     df_ranking,
                     column_config={
