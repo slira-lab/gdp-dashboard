@@ -329,7 +329,8 @@ if modulo_seleccionado == "Desempeño Médico":
         pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
         porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
-        inversion_cols_top = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
+        # CORRECCIÓN: Filtro de inversión para no sumar las columnas que digan "Total"
+        inversion_cols_top = [c for c in df_fact.columns if ('INVERSIÓN' in c.upper() or 'INVERSION' in c.upper()) and 'TOTAL' not in c.upper()]
         inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
         
         if medico_seleccionado == "Todos":
@@ -349,6 +350,7 @@ if modulo_seleccionado == "Desempeño Médico":
         """, unsafe_allow_html=True)
 
         st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
+        # --- DESCRIPCIÓN DEL MÓDULO 1 ---
         st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -505,6 +507,7 @@ if modulo_seleccionado == "Desempeño Médico":
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
             
+            # --- RECUADRO DE REPRESENTACIÓN (SIN NÚMEROS ABSOLUTOS) ---
             st.markdown(f"""
             <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
                 <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
@@ -516,7 +519,9 @@ if modulo_seleccionado == "Desempeño Médico":
             
             df_ranking = []
             ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
-            inversion_cols = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
+            
+            # CORRECCIÓN: Filtro de inversión en la pestaña 3 también
+            inversion_cols = [c for c in df_fact.columns if ('INVERSIÓN' in c.upper() or 'INVERSION' in c.upper()) and 'TOTAL' not in c.upper()]
             inversion_global = df_fact[inversion_cols].sum().sum() if inversion_cols else 0
             
             for index, row in df_fact_filtrado.iterrows():
@@ -544,7 +549,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 
                 df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
                 
-                # Ranking (Sin conteo absoluto)
+                # MOSTRAR RANKING (Ocultamos "Pruebas" para mantener confidencialidad)
                 st.dataframe(
                     df_ranking,
                     column_config={
@@ -558,7 +563,7 @@ if modulo_seleccionado == "Desempeño Médico":
                     use_container_width=True
                 )
                 
-                # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (Restaurada la columna de cantidad) ---
+                # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (RESTITUIDA COLUMNA "CANTIDAD") ---
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.subheader("Desglose de Participación por Tipo de Prueba")
                 st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
