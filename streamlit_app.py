@@ -546,7 +546,10 @@ if modulo_seleccionado == "Desempeño Médico":
                 df_ranking['% de Ingresos'] = (df_ranking['Ingreso ($)'] / ingreso_global) * 100 if ingreso_global > 0 else 0
                 df_ranking['% de Beneficios'] = (df_ranking['Beneficio ($)'] / inversion_global) * 100 if inversion_global > 0 else 0
                 
-                df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
+                # Convertir a numérico y luego ordenar de forma segura
+                df_ranking['% de Pruebas'] = pd.to_numeric(df_ranking['% de Pruebas'], errors='coerce').fillna(0)
+                df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False, kind='stable', na_position='last')
+                df_ranking = df_ranking.reset_index(drop=True)
                 
                 # MOSTRAR RANKING PRINCIPAL (Ocultamos "Pruebas" totales absolutas por confidencialidad)
                 st.dataframe(
@@ -704,7 +707,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         
                     html_stepper += f"""
 <div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
-<div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 16px; font-weight: bold; margin-bottom: 12px;">{icon}</div>
+<div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 18px; font-weight: bold;">{icon}</div>
 <div style="font-weight: bold; color: {text_color}; font-size: 13px; text-align: center; line-height: 1.2;">{label}</div>
 <div style="color: {text_color}; font-size: 11px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
 </div>
