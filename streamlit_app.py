@@ -7,6 +7,69 @@ import json
 import requests
 
 # ==========================================
+# 0. CONSTANTES Y UTILIDADES
+# ==========================================
+MONTHS_ES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+]
+MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+ESTADO_ORDER = {
+    "Solicitud Creada": 0,
+    "Recolección de Muestra": 1,
+    "Envío a Laboratorio": 2,
+    "En Laboratorio": 3,
+    "Resultado Listo": 4,
+    "Cancelada": 5,
+    "Sin información": 6,
+}
+
+
+def clean_string(value):
+    if pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
+def normalize_status_value(value):
+    s = clean_string(value)
+    if not s or s.upper() in ["NAN", "NONE", "NAT", "NULL"]:
+        return ""
+    return s
+
+
+def safe_unique_values(series):
+    values = []
+    if series is None:
+        return []
+    for v in series.dropna().astype(str):
+        v = v.strip()
+        if v and v.upper() != "NAN":
+            values.append(v)
+    return sorted(set(values))
+
+
+def build_month_columns(prefix):
+    return [f"{prefix} {month}" for month in MONTHS_ES]
+
+
+def get_status_category(estado):
+    normalized = str(estado or "").upper()
+    if any(x in normalized for x in ["PROSPECTO", "SOLICITUD", "PENDIENTE"]):
+        return "Solicitud Creada"
+    if any(x in normalized for x in ["RECOLECCION", "CORTES", "ENTREGA", "TOMA"]):
+        return "Recolección de Muestra"
+    if any(x in normalized for x in ["ENVIO", "TRANSITO", "COURIER"]):
+        return "Envío a Laboratorio"
+    if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION"]):
+        return "En Laboratorio"
+    if any(x in normalized for x in ["RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
+        return "Resultado Listo"
+    if "CANCELADA" in normalized:
+        return "Cancelada"
+    return "Solicitud Creada"
+
+# ==========================================
 # 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
 # ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
@@ -49,9 +112,9 @@ st.markdown(
         [data-testid="stMetric"] {
             background-color: #262730;
             border-left: 6px solid #5C95A6;
-            border-radius: 8px;
-            padding: 15px 20px;
-            box-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+            border-radius: 10px;
+            padding: 18px 20px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.35);
         }
 
         [data-testid="stMetricValue"] {
@@ -140,6 +203,31 @@ st.markdown(
             font-style: italic;
             font-weight: 400;
             letter-spacing: -0.04em;
+        }
+
+        .panel-card {
+            background: rgba(38,39,48,0.95);
+            border: 1px solid rgba(92,149,166,0.20);
+            border-left: 5px solid #5C95A6;
+            border-radius: 10px;
+            padding: 16px 18px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.18);
+        }
+
+        .panel-card p {
+            margin: 0;
+        }
+
+        .section-kicker {
+            color: #B4B4B4;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .muted-text {
+            color: #B4B4B4;
         }
 
         @media (max-width: 900px) {
@@ -406,40 +494,8 @@ if modulo_seleccionado == "Desempeño Médico":
             df_med_filtrado = df_medicos.copy()
             df_fact_filtrado = df_fact.copy()
 
-        cant_meses = [
-            f"Cantidad {m}"
-            for m in [
-                "Enero",
-                "Febrero",
-                "Marzo",
-                "Abril",
-                "Mayo",
-                "Junio",
-                "Julio",
-                "Agosto",
-                "Septiembre",
-                "Octubre",
-                "Noviembre",
-                "Diciembre",
-            ]
-        ]
-        monto_meses = [
-            f"Monto {m}"
-            for m in [
-                "Enero",
-                "Febrero",
-                "Marzo",
-                "Abril",
-                "Mayo",
-                "Junio",
-                "Julio",
-                "Agosto",
-                "Septiembre",
-                "Octubre",
-                "Noviembre",
-                "Diciembre",
-            ]
-        ]
+        cant_meses = build_month_columns("Cantidad")
+        monto_meses = build_month_columns("Monto")
 
         pruebas_global = df_fact[[c for c in cant_meses if c in df_fact.columns]].sum().sum()
         pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
@@ -447,7 +503,6 @@ if modulo_seleccionado == "Desempeño Médico":
 
         inversion_cols_top = [c for c in df_fact.columns if "Inversión" in c or "INVERSIÓN" in c.upper()]
         inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
-
         estatus_beneficios = "Múltiples" if medico_seleccionado == "Todos" else ("Sí" if inversion_total_filtrada > 0 else "No")
 
         st.markdown(
@@ -494,8 +549,7 @@ if modulo_seleccionado == "Desempeño Médico":
             with colA:
                 st.subheader("Evolución Global de Pruebas")
                 ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
-                meses_nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-                df_linea = pd.DataFrame({"Mes": meses_nombres, "Pruebas": ventas_por_mes})
+                df_linea = pd.DataFrame({"Mes": MONTHS_SHORT, "Pruebas": ventas_por_mes})
                 fig_line = px.line(df_linea, x="Mes", y="Pruebas", template="plotly_dark", markers=True, line_shape="spline")
                 fig_line.update_traces(line_color="#5C95A6", line_width=4, marker=dict(size=8, color="#87A98A"))
                 st.plotly_chart(fig_line, use_container_width=True)
@@ -547,15 +601,12 @@ if modulo_seleccionado == "Desempeño Médico":
 
             st.markdown("<hr>", unsafe_allow_html=True)
             st.subheader("Distribución Mensual por Tipo de Prueba")
-            meses_completos = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-            meses_cortos = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
             datos_barras = []
-
-            for idx_m, mes in enumerate(meses_completos):
+            for idx_m, mes in enumerate(MONTHS_ES):
                 if f"Producto {mes}" in df_fact_filtrado.columns and f"Cantidad {mes}" in df_fact_filtrado.columns:
                     temp = df_fact_filtrado[[f"Producto {mes}", f"Cantidad {mes}"]].copy()
                     temp.columns = ["Prueba", "Cantidad"]
-                    temp["Mes"] = meses_cortos[idx_m]
+                    temp["Mes"] = MONTHS_SHORT[idx_m]
                     datos_barras.append(temp)
 
             if datos_barras:
@@ -565,7 +616,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 df_barras = df_barras.groupby(["Mes", "Prueba"])["Cantidad"].sum().reset_index()
 
                 df_pivot = df_barras.pivot(index="Mes", columns="Prueba", values="Cantidad").fillna(0)
-                df_pivot = df_pivot.reindex(meses_cortos).fillna(0)
+                df_pivot = df_pivot.reindex(MONTHS_SHORT).fillna(0)
                 df_barras_clean = df_pivot.reset_index().melt(id_vars="Mes", value_name="Cantidad")
 
                 colores_marca = ["#2EC4B6", "#FF9F1C", "#5C95A6", "#87A98A", "#E2A973", "#4A7A8A", "#999999", "#A3C1CC"]
@@ -579,7 +630,7 @@ if modulo_seleccionado == "Desempeño Médico":
                     color_discrete_sequence=colores_marca,
                 )
                 fig_line_prod.update_traces(line=dict(width=4), marker=dict(size=8))
-                fig_line_prod.update_xaxes(categoryorder="array", categoryarray=meses_cortos)
+                fig_line_prod.update_xaxes(categoryorder="array", categoryarray=MONTHS_SHORT)
                 fig_line_prod.update_layout(legend_title_text="Tipo de Prueba", xaxis_title="Meses", yaxis_title="Pruebas Vendidas", hovermode="x unified")
                 st.plotly_chart(fig_line_prod, use_container_width=True)
             else:
@@ -588,7 +639,7 @@ if modulo_seleccionado == "Desempeño Médico":
         with tab2:
             st.subheader("Porcentaje de Participación por Prueba")
             lista_df_prod = []
-            for mes in ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]:
+            for mes in MONTHS_ES:
                 if f"Producto {mes}" in df_fact_filtrado.columns and f"Cantidad {mes}" in df_fact_filtrado.columns:
                     temp = df_fact_filtrado[[f"Producto {mes}", f"Cantidad {mes}"]].copy()
                     temp.columns = ["Producto", "Cantidad"]
@@ -624,11 +675,9 @@ if modulo_seleccionado == "Desempeño Médico":
             st.subheader("Ranking de Médicos (100% Confidencial)")
             st.markdown(
                 f"""
-                <div style="background-color: #262730; padding: 15px 25px; border-radius: 8px; border-left: 6px solid #FF9F1C; margin-bottom: 25px; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
-                    <p style="margin: 0; color: #B4B4B4; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;">Representación de la tabla actual</p>
-                    <p style="margin: 5px 0 0 0; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">
-                        {porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span>
-                    </p>
+                <div class="panel-card">
+                    <p class="section-kicker">Representación de la tabla actual</p>
+                    <p style="margin-top: 8px; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">{porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span></p>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -677,7 +726,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
 
                 lista_global_prod = []
-                for mes in ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]:
+                for mes in MONTHS_ES:
                     if f"Producto {mes}" in df_fact.columns and f"Cantidad {mes}" in df_fact.columns:
                         temp = df_fact[[f"Producto {mes}", f"Cantidad {mes}"]].copy()
                         temp.columns = ["Producto", "Cantidad"]
@@ -690,7 +739,7 @@ if modulo_seleccionado == "Desempeño Médico":
                     totales_globales_producto = df_global_prod.groupby("Producto")["Cantidad"].sum().to_dict()
 
                     lista_todas_ventas = []
-                    for mes in ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]:
+                    for mes in MONTHS_ES:
                         if f"Producto {mes}" in df_fact_filtrado.columns and f"Cantidad {mes}" in df_fact_filtrado.columns:
                             temp = df_fact_filtrado[["NOMBRE", f"Producto {mes}", f"Cantidad {mes}"]].copy()
                             temp.columns = ["Médico", "Prueba", "Cantidad"]
@@ -749,19 +798,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         unsafe_allow_html=True,
     )
 
-    def clean_string(value):
-        if pd.isna(value):
-            return ""
-        return str(value).strip()
-
-    def safe_unique_values(series):
-        values = []
-        for v in series.dropna().astype(str):
-            v = v.strip()
-            if v and v.upper() != "NAN":
-                values.append(v)
-        return sorted(set(values))
-
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
     else:
@@ -769,16 +805,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         for col in df_ventas_reales.columns:
             df_ventas_reales[col] = df_ventas_reales[col].map(clean_string)
 
-        required_cols = {"PACIENTE": "PACIENTE", "FOLIO": "FOLIO"}
-        for requested, actual in required_cols.items():
-            if actual not in df_ventas_reales.columns and requested in df_ventas_reales.columns:
-                actual = requested
-
         df_ventas_reales = df_ventas_reales[
-            (df_ventas_reales.get("PACIENTE", "").astype(str).str.strip() != "")
-            & (df_ventas_reales.get("PACIENTE", "").astype(str).str.upper() != "NAN")
-            & (df_ventas_reales.get("FOLIO", "").astype(str).str.strip() != "")
-            & (df_ventas_reales.get("FOLIO", "").astype(str).str.upper() != "NAN")
+            (df_ventas_reales.get("PACIENTE", pd.Series(dtype=str)).astype(str).str.strip() != "")
+            & (df_ventas_reales.get("PACIENTE", pd.Series(dtype=str)).astype(str).str.upper() != "NAN")
+            & (df_ventas_reales.get("FOLIO", pd.Series(dtype=str)).astype(str).str.strip() != "")
+            & (df_ventas_reales.get("FOLIO", pd.Series(dtype=str)).astype(str).str.upper() != "NAN")
         ].copy()
         df_ventas_reales = df_ventas_reales[~df_ventas_reales["PACIENTE"].astype(str).str.upper().str.contains("TOTAL")]
         df_ventas_reales = df_ventas_reales.drop_duplicates(subset=["FOLIO", "PACIENTE"])
@@ -788,30 +819,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         def get_current_status(row):
             for sc in reversed(status_cols):
-                val = clean_string(row.get(sc, ""))
-                if val and val.upper() not in ["NAN", "NONE", "NAT", ""]:
+                val = normalize_status_value(row.get(sc, ""))
+                if val:
                     return val
             return "PENDIENTE"
 
         df_ventas_reales["ESTADO_ACTUAL"] = df_ventas_reales.apply(get_current_status, axis=1)
-
-        def map_status_category(estado):
-            estado = str(estado).upper()
-            if any(x in estado for x in ["PROSPECTO", "SOLICITUD", "PENDIENTE"]):
-                return "Solicitud Creada"
-            elif any(x in estado for x in ["RECOLECCION", "CORTES", "ENTREGA", "TOMA"]):
-                return "Recolección de Muestra"
-            elif any(x in estado for x in ["ENVIO", "TRANSITO", "COURIER"]):
-                return "Envío a Laboratorio"
-            elif any(x in estado for x in ["LABORATORIO", "ANALISIS", "RECEPCION"]):
-                return "En Laboratorio"
-            elif any(x in estado for x in ["RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
-                return "Resultado Listo"
-            elif "CANCELADA" in estado:
-                return "Cancelada"
-            return "Solicitud Creada"
-
-        df_ventas_reales["CATEGORIA_ESTADO"] = df_ventas_reales["ESTADO_ACTUAL"].apply(map_status_category)
+        df_ventas_reales["CATEGORIA_ESTADO"] = df_ventas_reales["ESTADO_ACTUAL"].map(get_status_category)
 
         st.subheader("Búsqueda y Filtros Operativos")
         col_f1, col_f2 = st.columns(2)
@@ -881,18 +895,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         df_tabla["CATEGORIA_ESTADO"] = df_tabla["CATEGORIA_ESTADO"].replace({"": "Sin información"})
         df_tabla["ESTADO_ACTUAL"] = df_tabla["ESTADO_ACTUAL"].replace({"": "Sin información"})
-
-        orden_estados = {
-            "Solicitud Creada": 0,
-            "Recolección de Muestra": 1,
-            "Envío a Laboratorio": 2,
-            "En Laboratorio": 3,
-            "Resultado Listo": 4,
-            "Cancelada": 5,
-            "Sin información": 6,
-        }
-        df_tabla["__orden_estado__"] = df_tabla["CATEGORIA_ESTADO"].map(orden_estados).fillna(999)
+        df_tabla["__orden_estado__"] = df_tabla["CATEGORIA_ESTADO"].map(ESTADO_ORDER).fillna(999)
         df_tabla = df_tabla.sort_values(["__orden_estado__", "FOLIO"], ascending=[True, True]).drop(columns="__orden_estado__").reset_index(drop=True)
+
         st.dataframe(
             df_tabla,
             hide_index=True,
@@ -908,6 +913,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
             },
         )
+
         st.markdown("<br>", unsafe_allow_html=True)
 
         lista_pacientes = safe_unique_values(df_filtrado.get("PACIENTE", pd.Series([], dtype=str)))
@@ -932,14 +938,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
 
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Creada")
+                idx_actual = 0
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
-                    idx_actual = 0
-                else:
-                    idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
+                elif cat_actual in etapas:
+                    idx_actual = etapas.index(cat_actual)
 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100 if len(etapas) > 1 else 0
-
                 html_stepper = f"""
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
                     <div style="position: absolute; top: 17px; left: 10%; width: 80%; height: 4px; background-color: #333333; z-index: 0;"></div>
@@ -966,9 +971,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_details:
                 fechas_validas_list = []
                 for f_col, s_col in zip(fecha_cols, status_cols):
-                    f_val = clean_string(datos_paciente.get(f_col, ""))
-                    s_val = clean_string(datos_paciente.get(s_col, ""))
-                    if s_val and s_val.upper() not in ["NAN", "NONE", "NAT", ""]:
+                    f_val = normalize_status_value(datos_paciente.get(f_col, ""))
+                    s_val = normalize_status_value(datos_paciente.get(s_col, ""))
+                    if s_val:
                         if " " in f_val:
                             f_val = f_val.split()[0]
                         dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
@@ -978,7 +983,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 if fechas_validas_list:
                     fechas_validas_series = pd.Series(fechas_validas_list)
                     fecha_inicio = fechas_validas_series.min()
-
                     if cat_actual == "Resultado Listo":
                         fecha_fin = fechas_validas_series.max()
                         dias = (fecha_fin - fecha_inicio).days
@@ -993,9 +997,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 else:
                     tat_text = "N/A"
 
-                comentario_raw = clean_string(datos_paciente.get("COMENTARIO", ""))
+                comentario_raw = normalize_status_value(datos_paciente.get("COMENTARIO", ""))
                 comentario_html = ""
-                if comentario_raw and comentario_raw.upper() not in ["NAN", "NONE", "NAT"]:
+                if comentario_raw:
                     comentario_html = f"""
                     <div style="margin-top: 15px; padding: 10px; background-color: rgba(255, 75, 75, 0.1); border-left: 4px solid #FF4B4B; border-radius: 4px; color: #FF4B4B; font-size: 13px;">
                         <b>Nota / Alerta Operativa:</b><br>{comentario_raw}
@@ -1023,9 +1027,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             historial = []
             for f_col, s_col in zip(fecha_cols, status_cols):
-                fecha_val = clean_string(datos_paciente.get(f_col, ""))
-                status_val = clean_string(datos_paciente.get(s_col, ""))
-                if status_val and status_val.upper() not in ["NAN", "NONE", "NAT", ""]:
+                fecha_val = normalize_status_value(datos_paciente.get(f_col, ""))
+                status_val = normalize_status_value(datos_paciente.get(s_col, ""))
+                if status_val:
                     fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
                     historial.append({
                         "Fecha": fecha_limpia,
