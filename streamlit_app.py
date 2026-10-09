@@ -616,8 +616,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<h1 class='titulo-principal'>Seguimiento y Estatus de Pruebas</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='descripcion-modulo'>Consulte la bitácora operativa y monitoree el progreso en tiempo real de las pruebas genéticas solicitadas.</p>", unsafe_allow_html=True)
+    st.markdown("<h1 class='titulo-principal'>Centro de Control Operativo</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='descripcion-modulo'>Monitoree el progreso en tiempo real de las pruebas, identifique cuellos de botella y gestione la bitácora logística.</p>", unsafe_allow_html=True)
     
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
@@ -652,24 +652,68 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas['CATEGORIA_ESTADO'] = df_ventas['ESTADO_ACTUAL'].apply(map_status_category)
         
-        st.markdown("<br>", unsafe_allow_html=True)
-        filtro_estado = st.radio(
-            "Filtros rápido:",
-            ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"],
-            horizontal=True
-        )
+        # --- 1. INDICADORES GLOBALES (KPIs) ---
+        total_pruebas = len(df_ventas)
+        total_activas = len(df_ventas[~df_ventas['CATEGORIA_ESTADO'].isin(["Resultado Listo", "Cancelada"])])
+        total_transito = len(df_ventas[df_ventas['CATEGORIA_ESTADO'] == "Envío a Laboratorio"])
+        total_listas = len(df_ventas[df_ventas['CATEGORIA_ESTADO'] == "Resultado Listo"])
         
-        if filtro_estado != "Todos":
-            df_filtrado = df_ventas[df_ventas['CATEGORIA_ESTADO'] == filtro_estado]
-        else:
-            df_filtrado = df_ventas
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric("Total Histórico", total_pruebas)
+        col_k2.metric("Pruebas Activas (En proceso)", total_activas)
+        col_k3.metric("En Tránsito (Courier)", total_transito)
+        col_k4.metric("Resultados Listos", total_listas)
+        
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # --- 2. GRÁFICO DE EMBUDO (FUNNEL) ---
+        st.subheader("Estado Global de Pruebas")
+        df_funnel = df_ventas[df_ventas['CATEGORIA_ESTADO'] != 'Cancelada'].groupby('CATEGORIA_ESTADO').size().reset_index(name='Cantidad')
+        orden_etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
+        
+        fig_funnel = px.funnel(
+            df_funnel, 
+            x='Cantidad', 
+            y='CATEGORIA_ESTADO', 
+            category_orders={"CATEGORIA_ESTADO": orden_etapas},
+            template="plotly_dark",
+            color_discrete_sequence=['#5C95A6']
+        )
+        fig_funnel.update_layout(margin=dict(t=20, b=20, l=0, r=0))
+        st.plotly_chart(fig_funnel, use_container_width=True)
+        
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # --- 3. FILTROS (ESTADO Y VENDEDOR) ---
+        st.subheader("Búsqueda y Filtros Operativos")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            filtro_estado = st.selectbox("Filtrar por Etapa del Proceso:", ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo", "Cancelada"])
+        with col_f2:
+            lista_vend = ["Todos"] + sorted([str(x) for x in df_ventas['VENDEDOR'].dropna().unique() if str(x).strip() != '' and str(x).upper() != 'NAN'])
+            filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
             
+        df_filtrado = df_ventas.copy()
+        if filtro_estado != "Todos":
+            df_filtrado = df_filtrado[df_filtrado['CATEGORIA_ESTADO'] == filtro_estado]
+        if filtro_vendedor != "Todos":
+            df_filtrado = df_filtrado[df_filtrado['VENDEDOR'].astype(str).str.strip() == filtro_vendedor]
+            
+        # --- 4. TABLA DE TRABAJO (VISTA GENERAL) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #B4B4B4; font-size: 1.1rem;'>Tabla de Trabajo Operativo</h4>", unsafe_allow_html=True)
+        
+        df_tabla = df_filtrado[['FOLIO', 'PACIENTE', 'MEDICO', 'PRUEBA', 'VENDEDOR', 'CATEGORIA_ESTADO', 'ESTADO_ACTUAL']].copy()
+        st.dataframe(df_tabla, hide_index=True, use_container_width=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --- 5. DETALLE DE PACIENTE Y TAT ---
         lista_pacientes = df_filtrado['PACIENTE'].dropna().unique().tolist()
         lista_pacientes = [p for p in lista_pacientes if str(p).strip() and str(p).upper() != 'NAN']
         
         col_search, _ = st.columns([2, 1])
         with col_search:
-            paciente_seleccionado = st.selectbox("Búsqueda por Paciente", ["Seleccione un paciente..."] + sorted(lista_pacientes))
+            paciente_seleccionado = st.selectbox("Seleccione un Paciente para ver Detalles, Alertas y Bitácora:", ["Seleccione un paciente..."] + sorted(lista_pacientes))
             
         if paciente_seleccionado != "Seleccione un paciente...":
             datos_paciente = df_ventas[df_ventas['PACIENTE'] == paciente_seleccionado].iloc[-1]
@@ -682,17 +726,15 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
-                etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
-                etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
-                
                 cat_actual = datos_paciente['CATEGORIA_ESTADO']
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
                     idx_actual = 0
                 else:
-                    idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
+                    idx_actual = orden_etapas.index(cat_actual) if cat_actual in orden_etapas else 0
                 
-                progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
+                progress_percentage = (idx_actual / (len(orden_etapas) - 1)) * 100
+                etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
                 
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
@@ -718,15 +760,47 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 st.markdown(html_stepper, unsafe_allow_html=True)
                 
             with col_details:
+                # --- CÁLCULO DE TIEMPO (TAT) ---
+                fechas_raw = [datos_paciente.get(c) for c in fecha_cols]
+                fechas_validas = pd.to_datetime(fechas_raw, errors='coerce').dropna()
+                
+                if not fechas_validas.empty:
+                    fecha_inicio = fechas_validas.min()
+                    if cat_actual == "Resultado Listo":
+                        fecha_fin = fechas_validas.max()
+                        dias = (fecha_fin - fecha_inicio).days
+                        tat_text = f"<span style='color: #2EC4B6;'>{dias} días (Proceso Terminado)</span>"
+                    elif cat_actual == "Cancelada":
+                        tat_text = "<span style='color: #FF4B4B;'>Prueba Cancelada</span>"
+                    else:
+                        dias = (pd.Timestamp.today() - fecha_inicio).days
+                        color_tat = "#FF9F1C" if dias > 10 else "#FFFFFF"
+                        tat_text = f"<span style='color: {color_tat};'>{dias} días transcurridos</span>"
+                else:
+                    tat_text = "N/A"
+                    
+                # --- COMENTARIOS (ALERTAS) ---
+                comentario_raw = str(datos_paciente.get('COMENTARIO', '')).strip()
+                comentario_html = ""
+                if comentario_raw and comentario_raw.upper() not in ['NAN', 'NONE', 'NAT']:
+                    comentario_html = f"""
+                    <div style="margin-top: 15px; padding: 10px; background-color: rgba(255, 75, 75, 0.1); border-left: 4px solid #FF4B4B; border-radius: 4px; color: #FF4B4B; font-size: 13px;">
+                        <b>Nota / Alerta Operativa:</b><br>{comentario_raw}
+                    </div>
+                    """
+
                 html_detalles = f"""
 <div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
 <h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
-<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
-<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
-<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
-<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
-<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
-<p style="margin: 10px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
+<hr style="border-color: #333; margin: 15px 0;">
+<p style="margin: 8px 0; font-size: 14px;"><b>Tiempo de Proceso (TAT):</b> {tat_text}</p>
+{comentario_html}
 </div>
 """
                 st.markdown(html_detalles, unsafe_allow_html=True)
@@ -739,6 +813,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 fecha_val = str(datos_paciente.get(f_col, '')).strip()
                 status_val = str(datos_paciente.get(s_col, '')).strip()
                 if status_val and status_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
+                    # Cortamos la hora para que solo quede la fecha
                     if ' ' in fecha_val:
                         fecha_limpia = fecha_val.split()[0]
                     else:
