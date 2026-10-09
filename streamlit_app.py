@@ -271,11 +271,9 @@ if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar 
 # ==========================================
 if modulo_seleccionado == "Desempeño Médico":
     
-    # --- SISTEMA DE SEGURIDAD Y CONTRASEÑA ---
     if "acceso_modulo_1" not in st.session_state:
         st.session_state["acceso_modulo_1"] = False
 
-    # Si NO está desbloqueado, mostramos la pantalla de login
     if not st.session_state["acceso_modulo_1"]:
         st.markdown("<br><br>", unsafe_allow_html=True)
         col_vacia1, col_login, col_vacia2 = st.columns([1, 1, 1])
@@ -292,23 +290,19 @@ if modulo_seleccionado == "Desempeño Médico":
             pwd = st.text_input("Ingrese su contraseña de acceso:", type="password")
             
             if st.button("Desbloquear Dashboard", use_container_width=True):
-                # Contraseña de acceso
                 if pwd == "South2026": 
                     st.session_state["acceso_modulo_1"] = True
                     st.rerun()
                 elif pwd != "":
                     st.error("Contraseña incorrecta. Intente de nuevo.")
                     
-    # Si YA está desbloqueado, mostramos todo el dashboard
     else:
-        # Botón sutil para cerrar sesión
         col_logout, _ = st.columns([1, 8])
         with col_logout:
             if st.button("Cerrar Sesión"):
                 st.session_state["acceso_modulo_1"] = False
                 st.rerun()
                 
-        # Filtro específico de este módulo
         st.sidebar.markdown("<br>", unsafe_allow_html=True)
         st.sidebar.title("Filtro Ejecutivo")
         lista_medicos = ["Todos"] + df_medicos['NOMBRE'].unique().tolist()
@@ -321,7 +315,6 @@ if modulo_seleccionado == "Desempeño Médico":
             df_med_filtrado = df_medicos
             df_fact_filtrado = df_fact
 
-        # Cálculos globales
         cant_meses = [f'Cantidad {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
         monto_meses = [f'Monto {m}' for m in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']]
 
@@ -329,7 +322,6 @@ if modulo_seleccionado == "Desempeño Médico":
         pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
         porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
 
-        # CORRECCIÓN DE VUELTA AL ORIGINAL: Leemos todas las columnas que digan Inversión sin importar si dicen "Total" o no
         inversion_cols_top = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
         inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
         
@@ -350,7 +342,6 @@ if modulo_seleccionado == "Desempeño Médico":
         """, unsafe_allow_html=True)
 
         st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
-        # --- DESCRIPCIÓN DEL MÓDULO 1 ---
         st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
         col1, col2, col3, col4, col5 = st.columns(5)
@@ -369,10 +360,8 @@ if modulo_seleccionado == "Desempeño Médico":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Sistema de Pestañas
         tab1, tab2, tab3 = st.tabs(["Visión General", "Análisis de Pruebas", "Ranking y Beneficios"])
 
-        # --- PESTAÑA 1: VISIÓN GENERAL ---
         with tab1:
             st.markdown("<br>", unsafe_allow_html=True)
             colA, colB = st.columns([2, 1])
@@ -467,7 +456,6 @@ if modulo_seleccionado == "Desempeño Médico":
             else:
                 st.info("No hay datos suficientes para graficar.")
 
-        # --- PESTAÑA 2: MIX DE PRUEBAS ---
         with tab2:
             st.subheader("Porcentaje de Participación por Prueba")
             lista_df_prod = []
@@ -503,7 +491,6 @@ if modulo_seleccionado == "Desempeño Médico":
             else:
                 st.info("No hay ventas registradas para generar el desglose.")
 
-        # --- PESTAÑA 3: RANKING Y BENEFICIOS ---
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
             
@@ -519,7 +506,6 @@ if modulo_seleccionado == "Desempeño Médico":
             df_ranking = []
             ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
             
-            # CORRECCIÓN DE VUELTA AL ORIGINAL: Leemos todas las columnas que digan Inversión
             inversion_cols = [c for c in df_fact.columns if 'Inversión' in c or 'INVERSIÓN' in c.upper()]
             inversion_global = df_fact[inversion_cols].sum().sum() if inversion_cols else 0
             
@@ -546,12 +532,8 @@ if modulo_seleccionado == "Desempeño Médico":
                 df_ranking['% de Ingresos'] = (df_ranking['Ingreso ($)'] / ingreso_global) * 100 if ingreso_global > 0 else 0
                 df_ranking['% de Beneficios'] = (df_ranking['Beneficio ($)'] / inversion_global) * 100 if inversion_global > 0 else 0
                 
-                # Convertir a numérico y luego ordenar de forma segura
-                df_ranking['% de Pruebas'] = pd.to_numeric(df_ranking['% de Pruebas'], errors='coerce').fillna(0)
-                df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False, kind='stable', na_position='last')
-                df_ranking = df_ranking.reset_index(drop=True)
+                df_ranking = df_ranking.sort_values('% de Pruebas', ascending=False)
                 
-                # MOSTRAR RANKING PRINCIPAL (Ocultamos "Pruebas" totales absolutas por confidencialidad)
                 st.dataframe(
                     df_ranking,
                     column_config={
@@ -565,7 +547,6 @@ if modulo_seleccionado == "Desempeño Médico":
                     use_container_width=True
                 )
                 
-                # --- NUEVA TABLA: DESGLOSE POR TIPO DE PRUEBA (CON COLUMNA DE CANTIDAD) ---
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.subheader("Desglose de Participación por Tipo de Prueba")
                 st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
@@ -600,7 +581,6 @@ if modulo_seleccionado == "Desempeño Médico":
                     df_doc_prueba['Total Global'] = df_doc_prueba['Prueba'].map(totales_globales_producto).fillna(0)
                     df_doc_prueba['Cuota del Producto (%)'] = (df_doc_prueba['Cantidad'] / df_doc_prueba['Total Global']) * 100
                     
-                    # Se incluye la columna 'Cantidad' para que el usuario pueda ver el número exacto
                     df_doc_prueba_display = df_doc_prueba[['Médico', 'Prueba', 'Cantidad', 'Cuota del Producto (%)']].sort_values(['Médico', 'Cantidad'], ascending=[True, False])
                     
                     st.dataframe(
@@ -641,24 +621,29 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas['ESTADO_ACTUAL'] = df_ventas.apply(get_current_status, axis=1)
         
+        # --- NUEVO MAPEO MÁS ESPECÍFICO (5 ETAPAS) ---
         def map_status_category(estado):
             estado = str(estado).upper()
-            if any(x in estado for x in ['PROSPECTO', 'SOLICITUD', 'CANCELADA', 'PENDIENTE']):
-                return "Pendiente de Toma"
-            elif any(x in estado for x in ['RECOLECCION', 'CORTES', 'ENTREGA', 'ENVIO', 'TRANSITO']):
-                return "En Tránsito"
+            if any(x in estado for x in ['PROSPECTO', 'SOLICITUD', 'PENDIENTE']):
+                return "Solicitud Creada"
+            elif any(x in estado for x in ['RECOLECCION', 'CORTES', 'ENTREGA', 'TOMA']):
+                return "Recolección de Muestra"
+            elif any(x in estado for x in ['ENVIO', 'TRANSITO', 'COURIER']):
+                return "Envío a Laboratorio"
             elif any(x in estado for x in ['LABORATORIO', 'ANALISIS', 'RECEPCION']):
                 return "En Laboratorio"
             elif any(x in estado for x in ['RESULTADO', 'LISTO', 'COMPLETADO', 'FINALIZADO']):
                 return "Resultado Listo"
-            return "Pendiente de Toma"
+            elif 'CANCELADA' in estado:
+                return "Cancelada"
+            return "Solicitud Creada"
             
         df_ventas['CATEGORIA_ESTADO'] = df_ventas['ESTADO_ACTUAL'].apply(map_status_category)
         
         st.markdown("<br>", unsafe_allow_html=True)
         filtro_estado = st.radio(
             "Filtros rápido:",
-            ["Todos", "Pendiente de Toma", "En Tránsito", "En Laboratorio", "Resultado Listo"],
+            ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"],
             horizontal=True
         )
         
@@ -685,31 +670,38 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
-                etapas = ["Pendiente de Toma", "En Tránsito", "En Laboratorio", "Resultado Listo"]
-                etapas_labels = ["Toma de Muestra", "Envíado / Courier", "En Laboratorio / Análisis", "Resultado Listo"]
+                # --- NUEVO STEPPER (5 ETAPAS VISUALES) ---
+                etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
+                etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
+                
                 cat_actual = datos_paciente['CATEGORIA_ESTADO']
-                idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
+                if cat_actual == "Cancelada":
+                    st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
+                    idx_actual = 0
+                else:
+                    idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
                 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
                 
+                # Ajustamos la línea de fondo (width: 80% y left: 10%) para que encaje exacto con los 5 puntos
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
-<div style="position: absolute; top: 17px; left: 12.5%; width: 75%; height: 4px; background-color: #333333; z-index: 0;"></div>
-<div style="position: absolute; top: 17px; left: 12.5%; width: {progress_percentage * 0.75}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
+<div style="position: absolute; top: 17px; left: 10%; width: 80%; height: 4px; background-color: #333333; z-index: 0;"></div>
+<div style="position: absolute; top: 17px; left: 10%; width: {progress_percentage * 0.80}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
 """
                 for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
                         icon, color, text_color, sub_text = "✔", "#5C95A6", "#FFFFFF", "Completado"
-                    elif i == idx_actual:
+                    elif i == idx_actual and cat_actual != "Cancelada":
                         icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
                     else:
                         icon, color, text_color, sub_text = "", "#333333", "#888888", "Pendiente"
                         
                     html_stepper += f"""
 <div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
-<div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 18px; font-weight: bold;">{icon}</div>
-<div style="font-weight: bold; color: {text_color}; font-size: 13px; text-align: center; line-height: 1.2;">{label}</div>
-<div style="color: {text_color}; font-size: 11px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
+<div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 16px; font-weight: bold; margin-bottom: 12px;">{icon}</div>
+<div style="font-weight: bold; color: {text_color}; font-size: 12px; text-align: center; line-height: 1.2;">{label}</div>
+<div style="color: {text_color}; font-size: 10px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
 </div>
 """
                 html_stepper += "</div>"
@@ -732,23 +724,22 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
             
+            # --- TABLA DE HISTORIAL (SIN COLUMNA DE HORA) ---
             historial = []
             for f_col, s_col in zip(fecha_cols, status_cols):
                 fecha_val = str(datos_paciente.get(f_col, '')).strip()
                 status_val = str(datos_paciente.get(s_col, '')).strip()
                 if status_val and status_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
+                    # Cortamos cualquier hora que venga junto con la fecha
                     if ' ' in fecha_val:
                         fecha_limpia = fecha_val.split()[0]
-                        hora_limpia = fecha_val.split()[1][:5]
                     else:
                         fecha_limpia = fecha_val
-                        hora_limpia = "-"
                         
                     historial.append({
                         "Fecha": fecha_limpia,
-                        "Hora": hora_limpia,
                         "Estado": status_val,
-                        "Descripción": "Actualización registrada en sistema",
+                        "Descripción": f"Prueba actualizada a estatus: {status_val}",
                         "Nota": "-"
                     })
                     
