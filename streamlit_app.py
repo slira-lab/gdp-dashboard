@@ -621,7 +621,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
     else:
-        # --- FILTRO ESTRICTO: LIMPIEZA DE FILAS VACÍAS, TOTALES Y DUPLICADOS (PARA OBTENER LAS 72 REALES) ---
         df_ventas_reales = df_ventas[
             (df_ventas['PACIENTE'].astype(str).str.strip() != '') &
             (df_ventas['PACIENTE'].astype(str).str.upper() != 'NAN') &
@@ -629,9 +628,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             (df_ventas['FOLIO'].astype(str).str.upper() != 'NAN')
         ].copy()
         
-        # Eliminamos cualquier fila que sea un "Total" arrastrado de Excel
         df_ventas_reales = df_ventas_reales[~df_ventas_reales['PACIENTE'].astype(str).str.upper().str.contains('TOTAL')]
-        # Eliminamos duplicados por si se copió un Folio dos veces
         df_ventas_reales = df_ventas_reales.drop_duplicates(subset=['FOLIO', 'PACIENTE'])
         
         status_cols = [c for c in df_ventas_reales.columns if 'STATUS' in c]
@@ -664,59 +661,69 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas_reales['CATEGORIA_ESTADO'] = df_ventas_reales['ESTADO_ACTUAL'].apply(map_status_category)
         
-        # --- 1. INDICADORES GLOBALES (KPIs) ---
-        total_pruebas = len(df_ventas_reales)
-        total_activas = len(df_ventas_reales[~df_ventas_reales['CATEGORIA_ESTADO'].isin(["Resultado Listo", "Cancelada"])])
-        total_transito = len(df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] == "Envío a Laboratorio"])
-        total_listas = len(df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] == "Resultado Listo"])
+        # --- 1. BÚSQUEDA Y FILTROS OPERATIVOS (REORDENADOS) ---
+        st.subheader("Búsqueda y Filtros Operativos")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            lista_vend = ["Todos"] + sorted([str(x) for x in df_ventas_reales['VENDEDOR'].dropna().unique() if str(x).strip() != '' and str(x).upper() != 'NAN'])
+            filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
+        with col_f2:
+            filtro_estado = st.selectbox("Filtrar por Etapa del Proceso:", ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo", "Cancelada"])
+            
+        # Aplicar filtros
+        df_filtrado = df_ventas_reales.copy()
+        if filtro_vendedor != "Todos":
+            df_filtrado = df_filtrado[df_filtrado['VENDEDOR'].astype(str).str.strip() == filtro_vendedor]
+        if filtro_estado != "Todos":
+            df_filtrado = df_filtrado[df_filtrado['CATEGORIA_ESTADO'] == filtro_estado]
+
+        # --- 2. INDICADORES GLOBALES (ACTUALIZADOS CON EL FILTRO) ---
+        total_pruebas = len(df_filtrado)
+        total_activas = len(df_filtrado[~df_filtrado['CATEGORIA_ESTADO'].isin(["Resultado Listo", "Cancelada"])])
+        total_transito = len(df_filtrado[df_filtrado['CATEGORIA_ESTADO'] == "Envío a Laboratorio"])
+        total_listas = len(df_filtrado[df_filtrado['CATEGORIA_ESTADO'] == "Resultado Listo"])
         
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-        col_k1.metric("Total de Pruebas Reales", total_pruebas)
+        col_k1.metric("Total de Pruebas", total_pruebas)
         col_k2.metric("Pruebas Activas (En proceso)", total_activas)
         col_k3.metric("En Tránsito (Courier)", total_transito)
         col_k4.metric("Resultados Listos", total_listas)
         
         st.markdown("<hr>", unsafe_allow_html=True)
         
-        # --- 2. GRÁFICA DE DONA (REEMPLAZA AL EMBUDO) ---
+        # --- 3. GRÁFICA DE DONA (ACTUALIZADA CON EL FILTRO) ---
         st.subheader("Distribución Actual del Proceso")
-        df_dona = df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] != 'Cancelada'].groupby('CATEGORIA_ESTADO').size().reset_index(name='Cantidad')
+        df_dona = df_filtrado.groupby('CATEGORIA_ESTADO').size().reset_index(name='Cantidad')
         
-        colores_dona = ['#5C95A6', '#87A98A', '#FF9F1C', '#A3C1CC', '#2EC4B6']
+        colores_dona_map = {
+            "Solicitud Creada": "#5C95A6", 
+            "Recolección de Muestra": "#87A98A", 
+            "Envío a Laboratorio": "#FF9F1C", 
+            "En Laboratorio": "#A3C1CC", 
+            "Resultado Listo": "#2EC4B6",
+            "Cancelada": "#FF4B4B"
+        }
         
-        fig_dona = px.pie(
-            df_dona, 
-            values='Cantidad', 
-            names='CATEGORIA_ESTADO', 
-            hole=0.45, 
-            template="plotly_dark", 
-            color_discrete_sequence=colores_dona
-        )
-        fig_dona.update_traces(textposition='inside', textinfo='percent+label')
-        fig_dona.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True)
-        st.plotly_chart(fig_dona, use_container_width=True)
+        if not df_dona.empty:
+            fig_dona = px.pie(
+                df_dona, 
+                values='Cantidad', 
+                names='CATEGORIA_ESTADO', 
+                hole=0.45, 
+                template="plotly_dark", 
+                color='CATEGORIA_ESTADO',
+                color_discrete_map=colores_dona_map
+            )
+            fig_dona.update_traces(textposition='inside', textinfo='percent+label')
+            fig_dona.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True)
+            st.plotly_chart(fig_dona, use_container_width=True)
+        else:
+            st.info("No hay datos para mostrar en la gráfica con los filtros seleccionados.")
         
         st.markdown("<hr>", unsafe_allow_html=True)
-        
-        # --- 3. FILTROS (ESTADO Y VENDEDOR) ---
-        st.subheader("Búsqueda y Filtros Operativos")
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            filtro_estado = st.selectbox("Filtrar por Etapa del Proceso:", ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo", "Cancelada"])
-        with col_f2:
-            lista_vend = ["Todos"] + sorted([str(x) for x in df_ventas_reales['VENDEDOR'].dropna().unique() if str(x).strip() != '' and str(x).upper() != 'NAN'])
-            filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
-            
-        df_filtrado = df_ventas_reales.copy()
-        if filtro_estado != "Todos":
-            df_filtrado = df_filtrado[df_filtrado['CATEGORIA_ESTADO'] == filtro_estado]
-        if filtro_vendedor != "Todos":
-            df_filtrado = df_filtrado[df_filtrado['VENDEDOR'].astype(str).str.strip() == filtro_vendedor]
             
         # --- 4. TABLA DE TRABAJO (VISTA GENERAL) ---
-        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<h4 style='color: #B4B4B4; font-size: 1.1rem;'>Tabla de Trabajo Operativo</h4>", unsafe_allow_html=True)
-        
         df_tabla = df_filtrado[['FOLIO', 'PACIENTE', 'MEDICO', 'PRUEBA', 'VENDEDOR', 'CATEGORIA_ESTADO', 'ESTADO_ACTUAL']].copy()
         st.dataframe(df_tabla, hide_index=True, use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -776,8 +783,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 st.markdown(html_stepper, unsafe_allow_html=True)
                 
             with col_details:
-                # --- CÁLCULO DE TIEMPO (TAT) CORREGIDO Y PRECISO ---
-                # Ahora solo toma en cuenta fechas que sí estén ligadas a un cambio de estatus
                 fechas_validas_list = []
                 for f_col, s_col in zip(fecha_cols, status_cols):
                     f_val = str(datos_paciente.get(f_col, '')).strip()
@@ -785,7 +790,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     if s_val and s_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
                         if ' ' in f_val:
                             f_val = f_val.split()[0]
-                        # Forzamos formato DD/MM/YYYY para evitar saltos de meses incorrectos
                         dt = pd.to_datetime(f_val, dayfirst=True, errors='coerce')
                         if not pd.isna(dt):
                             fechas_validas_list.append(dt)
@@ -802,21 +806,21 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         tat_text = "<span style='color: #FF4B4B;'>Prueba Cancelada</span>"
                     else:
                         dias = (pd.Timestamp.today().normalize() - fecha_inicio.normalize()).days
-                        dias = max(0, dias) # Evita números negativos por zonas horarias
+                        dias = max(0, dias)
                         color_tat = "#FF9F1C" if dias > 10 else "#FFFFFF"
                         tat_text = f"<span style='color: {color_tat};'>{dias} días transcurridos</span>"
                 else:
                     tat_text = "N/A"
                     
-                # --- COMENTARIOS (ALERTAS) ---
                 comentario_raw = str(datos_paciente.get('COMENTARIO', '')).strip()
                 comentario_html = ""
                 if comentario_raw and comentario_raw.upper() not in ['NAN', 'NONE', 'NAT']:
+                    # Ojo: No indentar el HTML dentro del bloque para evitar que Streamlit lo pinte como código
                     comentario_html = f"""
-                    <div style="margin-top: 15px; padding: 10px; background-color: rgba(255, 75, 75, 0.1); border-left: 4px solid #FF4B4B; border-radius: 4px; color: #FF4B4B; font-size: 13px;">
-                        <b>Nota / Alerta Operativa:</b><br>{comentario_raw}
-                    </div>
-                    """
+<div style="margin-top: 15px; padding: 10px; background-color: rgba(255, 75, 75, 0.1); border-left: 4px solid #FF4B4B; border-radius: 4px; color: #FF4B4B; font-size: 13px;">
+<b>Nota / Alerta Operativa:</b><br>{comentario_raw}
+</div>
+"""
 
                 html_detalles = f"""
 <div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
