@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import gspread
 from google.oauth2.service_account import Credentials
 import json
@@ -74,174 +75,171 @@ def get_status_category(estado):
 # ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
-st.markdown(
-    """
-    <style>
-        :root {
-            --bg: #0f1117;
-            --panel: #181c24;
-            --panel-2: #202631;
-            --line: #2f3744;
-            --accent: #5C95A6;
-            --accent-2: #87B4C2;
-            --text: #e8edf1;
-            --muted: #b6bec6;
-            --success: #2EC4B6;
-            --warning: #FF9F1C;
-            --danger: #FF4B4B;
-        }
+st.markdown("""
+<style>
+    :root {
+        --bg: #0f1117;
+        --panel: #181c24;
+        --panel-2: #202631;
+        --line: #2f3744;
+        --accent: #5C95A6;
+        --accent-2: #87B4C2;
+        --text: #e8edf1;
+        --muted: #b6bec6;
+        --success: #2EC4B6;
+        --warning: #FF9F1C;
+        --danger: #FF4B4B;
+    }
 
-        .titulo-principal {
-            font-size: 2.2rem !important;
-            color: #5C95A6 !important;
-            font-family: 'Arial', sans-serif;
-            font-weight: bold;
-            margin-bottom: 0px;
-            padding-bottom: 10px;
-        }
+    .titulo-principal {
+        font-size: 2.2rem !important;
+        color: #5C95A6 !important;
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        margin-bottom: 0px;
+        padding-bottom: 10px;
+    }
 
-        .descripcion-modulo {
-            color: #B4B4B4;
-            font-size: 1.1rem;
-            margin-top: 0;
-            margin-bottom: 25px;
-            border-bottom: 1px solid #333333;
-            padding-bottom: 15px;
-        }
+    .descripcion-modulo {
+        color: #B4B4B4;
+        font-size: 1.1rem;
+        margin-top: 0;
+        margin-bottom: 25px;
+        border-bottom: 1px solid #333333;
+        padding-bottom: 15px;
+    }
 
-        [data-testid="stMetric"] {
-            background-color: #262730;
-            border-left: 6px solid #5C95A6;
-            border-radius: 10px;
-            padding: 18px 20px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.35);
-        }
+    [data-testid="stMetric"] {
+        background-color: #262730;
+        border-left: 6px solid #5C95A6;
+        border-radius: 10px;
+        padding: 18px 20px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.35);
+    }
 
-        [data-testid="stMetricValue"] {
-            font-size: 1.3rem !important;
-            color: #FFFFFF !important;
-            white-space: normal !important;
-            line-height: 1.3 !important;
-            overflow-wrap: break-word !important;
-        }
+    [data-testid="stMetricValue"] {
+        font-size: 1.3rem !important;
+        color: #FFFFFF !important;
+        white-space: normal !important;
+        line-height: 1.3 !important;
+        overflow-wrap: break-word !important;
+    }
 
-        [data-testid="stMetricValue"] > div,
-        [data-testid="stMetricValue"] span,
-        [data-testid="stMetricValue"] label {
-            white-space: normal !important;
-            overflow: visible !important;
-            text-overflow: clip !important;
-        }
+    [data-testid="stMetricValue"] > div,
+    [data-testid="stMetricValue"] span,
+    [data-testid="stMetricValue"] label {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
 
-        [data-testid="stMetricLabel"] {
-            font-size: 1rem !important;
-            color: #B4B4B4 !important;
-            font-weight: bold;
-        }
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        color: #B4B4B4 !important;
+        font-weight: bold;
+    }
 
-        h2, h3 {
-            color: #5C95A6 !important;
-            font-family: 'Arial', sans-serif;
-        }
+    h2, h3 {
+        color: #5C95A6 !important;
+        font-family: 'Arial', sans-serif;
+    }
 
-        hr { border-color: #333333 !important; }
+    hr { border-color: #333333 !important; }
 
+    .brand-banner {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin: 0 0 1.25rem 0;
+        border-radius: 28px;
+        border: 1px solid rgba(92,149,166,0.25);
+        background: linear-gradient(90deg, rgba(18,26,35,0.98), rgba(11,18,23,0.94));
+        box-sizing: border-box;
+        min-height: 140px;
+    }
+
+    .brand-left {
+        display: flex;
+        align-items: baseline;
+        white-space: nowrap;
+    }
+
+    .brand-south,
+    .brand-genetics,
+    .brand-country {
+        display: inline-block;
+        white-space: nowrap;
+        line-height: 1;
+    }
+
+    .brand-south {
+        color: #C9CED0;
+        font-size: clamp(3rem, 6.8vw, 8.3rem);
+        font-weight: 700;
+        letter-spacing: -0.08em;
+        font-family: 'Arial', sans-serif;
+    }
+
+    .brand-genetics {
+        color: #87B4C2;
+        font-size: clamp(3rem, 6.8vw, 8.3rem);
+        font-weight: 700;
+        letter-spacing: -0.08em;
+        font-family: 'Arial', sans-serif;
+    }
+
+    .brand-right {
+        display: flex;
+        align-items: baseline;
+    }
+
+    .brand-country {
+        color: rgba(135, 180, 194, 0.96);
+        font-size: clamp(3rem, 6.8vw, 8.3rem);
+        font-family: 'Georgia', 'Times New Roman', serif;
+        font-style: italic;
+        font-weight: 400;
+        letter-spacing: -0.04em;
+    }
+
+    .panel-card {
+        background: rgba(38,39,48,0.95);
+        border: 1px solid rgba(92,149,166,0.20);
+        border-left: 5px solid #5C95A6;
+        border-radius: 10px;
+        padding: 16px 18px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.18);
+    }
+
+    .panel-card p {
+        margin: 0;
+    }
+
+    .section-kicker {
+        color: #B4B4B4;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .muted-text {
+        color: #B4B4B4;
+    }
+
+    @media (max-width: 900px) {
         .brand-banner {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1.5rem;
-            padding: 1.5rem 2rem;
-            margin: 0 0 1.25rem 0;
-            border-radius: 28px;
-            border: 1px solid rgba(92,149,166,0.25);
-            background: linear-gradient(90deg, rgba(18,26,35,0.98), rgba(11,18,23,0.94));
-            box-sizing: border-box;
-            min-height: 140px;
+            flex-wrap: wrap;
+            padding: 1rem;
+            gap: 0.5rem;
+            min-height: auto;
         }
-
-        .brand-left {
-            display: flex;
-            align-items: baseline;
-            white-space: nowrap;
-        }
-
-        .brand-south,
-        .brand-genetics,
-        .brand-country {
-            display: inline-block;
-            white-space: nowrap;
-            line-height: 1;
-        }
-
-        .brand-south {
-            color: #C9CED0;
-            font-size: clamp(3rem, 6.8vw, 8.3rem);
-            font-weight: 700;
-            letter-spacing: -0.08em;
-            font-family: 'Arial', sans-serif;
-        }
-
-        .brand-genetics {
-            color: #87B4C2;
-            font-size: clamp(3rem, 6.8vw, 8.3rem);
-            font-weight: 700;
-            letter-spacing: -0.08em;
-            font-family: 'Arial', sans-serif;
-        }
-
-        .brand-right {
-            display: flex;
-            align-items: baseline;
-        }
-
-        .brand-country {
-            color: rgba(135, 180, 194, 0.96);
-            font-size: clamp(3rem, 6.8vw, 8.3rem);
-            font-family: 'Georgia', 'Times New Roman', serif;
-            font-style: italic;
-            font-weight: 400;
-            letter-spacing: -0.04em;
-        }
-
-        .panel-card {
-            background: rgba(38,39,48,0.95);
-            border: 1px solid rgba(92,149,166,0.20);
-            border-left: 5px solid #5C95A6;
-            border-radius: 10px;
-            padding: 16px 18px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.18);
-        }
-
-        .panel-card p {
-            margin: 0;
-        }
-
-        .section-kicker {
-            color: #B4B4B4;
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .muted-text {
-            color: #B4B4B4;
-        }
-
-        @media (max-width: 900px) {
-            .brand-banner {
-                flex-wrap: wrap;
-                padding: 1rem;
-                gap: 0.5rem;
-                min-height: auto;
-            }
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. CONEXIÓN A DATOS, MONEDA Y MAPAS
@@ -426,15 +424,12 @@ try:
 except Exception:
     st.sidebar.markdown("### SouthGenetics")
 
-st.sidebar.markdown(
-    """
-    <div style="color: #A3C1CC; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; padding: 0 5px;">
-        <strong>Sistema Integral de Inteligencia de Negocios.</strong><br>
-        Herramienta centralizada para el monitoreo estratégico de desempeño comercial y la trazabilidad operativa de pruebas genéticas.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.sidebar.markdown("""
+<div style="color: #A3C1CC; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; padding: 0 5px;">
+    <strong>Sistema Integral de Inteligencia de Negocios.</strong><br>
+    Herramienta centralizada para el monitoreo estratégico de desempeño comercial y la trazabilidad operativa de pruebas genéticas.
+</div>
+""", unsafe_allow_html=True)
 
 st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio("Seleccione un módulo:", ["Desempeño Médico", "Seguimiento de Pruebas"])
@@ -457,15 +452,12 @@ if modulo_seleccionado == "Desempeño Médico":
         col_vacia1, col_login, col_vacia2 = st.columns([1, 1, 1])
 
         with col_login:
-            st.markdown(
-                """
-                <div style="background-color: #262730; padding: 30px; border-radius: 8px; border-top: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4); text-align: center;">
-                    <h3 style="color: #FFFFFF; margin-top: 0;">Acceso Restringido</h3>
-                    <p style="color: #B4B4B4; font-size: 14px;">Módulo exclusivo para Dirección y Gerencia.</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown("""
+<div style="background-color: #262730; padding: 30px; border-radius: 8px; border-top: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4); text-align: center;">
+    <h3 style="color: #FFFFFF; margin-top: 0;">Acceso Restringido</h3>
+    <p style="color: #B4B4B4; font-size: 14px;">Módulo exclusivo para Dirección y Gerencia.</p>
+</div>
+""", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
             pwd = st.text_input("Ingrese su contraseña de acceso:", type="password")
 
@@ -505,25 +497,19 @@ if modulo_seleccionado == "Desempeño Médico":
         inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
         estatus_beneficios = "Múltiples" if medico_seleccionado == "Todos" else ("Sí" if inversion_total_filtrada > 0 else "No")
 
-        st.markdown(
-            """
-            <div class="brand-banner">
-              <div class="brand-left">
-                <span class="brand-south">South</span><span class="brand-genetics">Genetics</span>
-              </div>
-              <div class="brand-right">
-                <span class="brand-country">México</span>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.markdown("""
+<div class="brand-banner">
+    <div class="brand-left">
+    <span class="brand-south">South</span><span class="brand-genetics">Genetics</span>
+    </div>
+    <div class="brand-right">
+    <span class="brand-country">México</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
         st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
-        st.markdown(
-            "<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
 
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
@@ -673,15 +659,12 @@ if modulo_seleccionado == "Desempeño Médico":
 
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
-            st.markdown(
-                f"""
-                <div class="panel-card">
-                    <p class="section-kicker">Representación de la tabla actual</p>
-                    <p style="margin-top: 8px; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">{porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span></p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"""
+<div class="panel-card">
+    <p class="section-kicker">Representación de la tabla actual</p>
+    <p style="margin-top: 8px; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">{porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span></p>
+</div>
+""", unsafe_allow_html=True)
 
             df_ranking = []
             ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
@@ -778,25 +761,19 @@ if modulo_seleccionado == "Desempeño Médico":
 # 5. MÓDULO 2: SEGUIMIENTO DE PRUEBAS
 # ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
-    st.markdown(
-        """
-        <div class="brand-banner">
-          <div class="brand-left">
-            <span class="brand-south">South</span><span class="brand-genetics">Genetics</span>
-          </div>
-          <div class="brand-right">
-            <span class="brand-country">México</span>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+<div class="brand-banner">
+    <div class="brand-left">
+    <span class="brand-south">South</span><span class="brand-genetics">Genetics</span>
+    </div>
+    <div class="brand-right">
+    <span class="brand-country">México</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("<h1 class='titulo-principal'>Centro de Control Operativo</h1>", unsafe_allow_html=True)
-    st.markdown(
-        "<p class='descripcion-modulo'>Monitoree el progreso en tiempo real de las pruebas, identifique cuellos de botella y gestione la bitácora logística.</p>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<p class='descripcion-modulo'>Monitoree el progreso en tiempo real de las pruebas, identifique cuellos de botella y gestione la bitácora logística.</p>", unsafe_allow_html=True)
 
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
@@ -925,10 +902,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             datos_paciente = df_ventas_reales[df_ventas_reales["PACIENTE"] == paciente_seleccionado].iloc[-1]
 
             st.markdown("<hr>", unsafe_allow_html=True)
-            st.markdown(
-                f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>",
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
 
             col_track, col_details = st.columns([2, 1], gap="large")
 
@@ -945,11 +919,12 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     idx_actual = etapas.index(cat_actual)
 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100 if len(etapas) > 1 else 0
+                
                 html_stepper = f"""
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
-                    <div style="position: absolute; top: 17px; left: 10%; width: 80%; height: 4px; background-color: #333333; z-index: 0;"></div>
-                    <div style="position: absolute; top: 17px; left: 10%; width: {progress_percentage * 0.80}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
-                """
+<div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
+<div style="position: absolute; top: 17px; left: 10%; width: 80%; height: 4px; background-color: #333333; z-index: 0;"></div>
+<div style="position: absolute; top: 17px; left: 10%; width: {progress_percentage * 0.80}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
+"""
                 for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
                         icon, color, text_color, sub_text = "✔", "#5C95A6", "#FFFFFF", "Completado"
@@ -959,12 +934,12 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         icon, color, text_color, sub_text = "", "#333333", "#888888", "Pendiente"
 
                     html_stepper += f"""
-                    <div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
-                        <div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 18px; font-weight: bold;">{icon}</div>
-                        <div style="font-weight: bold; color: {text_color}; font-size: 12px; text-align: center; line-height: 1.2; margin-top: 8px;">{label}</div>
-                        <div style="color: {text_color}; font-size: 10px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
-                    </div>
-                    """
+<div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
+<div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 18px; font-weight: bold;">{icon}</div>
+<div style="font-weight: bold; color: {text_color}; font-size: 12px; text-align: center; line-height: 1.2; margin-top: 8px;">{label}</div>
+<div style="color: {text_color}; font-size: 10px; text-align: center; opacity: 0.7; margin-top: 4px;">{sub_text}</div>
+</div>
+"""
                 html_stepper += "</div>"
                 st.markdown(html_stepper, unsafe_allow_html=True)
 
@@ -1001,25 +976,25 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 comentario_html = ""
                 if comentario_raw:
                     comentario_html = f"""
-                    <div style="margin-top: 15px; padding: 10px; background-color: rgba(255, 75, 75, 0.1); border-left: 4px solid #FF4B4B; border-radius: 4px; color: #FF4B4B; font-size: 13px;">
-                        <b>Nota / Alerta Operativa:</b><br>{comentario_raw}
-                    </div>
-                    """
+<div style="margin-top: 15px; padding: 10px; background-color: rgba(255, 75, 75, 0.1); border-left: 4px solid #FF4B4B; border-radius: 4px; color: #FF4B4B; font-size: 13px;">
+<b>Nota / Alerta Operativa:</b><br>{comentario_raw}
+</div>
+"""
 
                 html_detalles = f"""
-                <div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
-                    <h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
-                    <p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
-                    <p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
-                    <p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
-                    <p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
-                    <p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
-                    <p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
-                    <hr style="border-color: #333; margin: 15px 0;">
-                    <p style="margin: 8px 0; font-size: 14px;"><b>Tiempo de Proceso (TAT):</b> {tat_text}</p>
-                    {comentario_html}
-                </div>
-                """
+<div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
+<h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Paciente:</b> {datos_paciente.get('PACIENTE', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>ID de Prueba:</b> {datos_paciente.get('FOLIO', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Institución:</b> {datos_paciente.get('INSTITUCION', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Médico Tratante:</b> {datos_paciente.get('MEDICO', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Prueba:</b> {datos_paciente.get('PRUEBA', 'N/A')}</p>
+<p style="margin: 8px 0; color: #FFFFFF; font-size: 14px;"><b>Representante:</b> {datos_paciente.get('VENDEDOR', 'N/A')}</p>
+<hr style="border-color: #333; margin: 15px 0;">
+<p style="margin: 8px 0; font-size: 14px;"><b>Tiempo de Proceso (TAT):</b> {tat_text}</p>
+{comentario_html}
+</div>
+"""
                 st.markdown(html_detalles, unsafe_allow_html=True)
 
             st.markdown("<br>", unsafe_allow_html=True)
