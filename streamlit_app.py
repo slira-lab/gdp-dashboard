@@ -622,8 +622,16 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
     else:
-        status_cols = [c for c in df_ventas.columns if 'STATUS' in c]
-        fecha_cols = [c for c in df_ventas.columns if 'FECHA' in c]
+        # --- FILTRO ESTRICTO: IGNORAR REGISTROS VACÍOS O FANTASMAS ---
+        df_ventas_reales = df_ventas[
+            (df_ventas['PACIENTE'].astype(str).str.strip() != '') &
+            (df_ventas['PACIENTE'].astype(str).str.upper() != 'NAN') &
+            (df_ventas['FOLIO'].astype(str).str.strip() != '') &
+            (df_ventas['FOLIO'].astype(str).str.upper() != 'NAN')
+        ].copy()
+        
+        status_cols = [c for c in df_ventas_reales.columns if 'STATUS' in c]
+        fecha_cols = [c for c in df_ventas_reales.columns if 'FECHA' in c]
         
         def get_current_status(row):
             for sc in reversed(status_cols):
@@ -632,7 +640,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     return val
             return 'PENDIENTE'
             
-        df_ventas['ESTADO_ACTUAL'] = df_ventas.apply(get_current_status, axis=1)
+        df_ventas_reales['ESTADO_ACTUAL'] = df_ventas_reales.apply(get_current_status, axis=1)
         
         def map_status_category(estado):
             estado = str(estado).upper()
@@ -650,37 +658,40 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 return "Cancelada"
             return "Solicitud Creada"
             
-        df_ventas['CATEGORIA_ESTADO'] = df_ventas['ESTADO_ACTUAL'].apply(map_status_category)
+        df_ventas_reales['CATEGORIA_ESTADO'] = df_ventas_reales['ESTADO_ACTUAL'].apply(map_status_category)
         
         # --- 1. INDICADORES GLOBALES (KPIs) ---
-        total_pruebas = len(df_ventas)
-        total_activas = len(df_ventas[~df_ventas['CATEGORIA_ESTADO'].isin(["Resultado Listo", "Cancelada"])])
-        total_transito = len(df_ventas[df_ventas['CATEGORIA_ESTADO'] == "Envío a Laboratorio"])
-        total_listas = len(df_ventas[df_ventas['CATEGORIA_ESTADO'] == "Resultado Listo"])
+        total_pruebas = len(df_ventas_reales)
+        total_activas = len(df_ventas_reales[~df_ventas_reales['CATEGORIA_ESTADO'].isin(["Resultado Listo", "Cancelada"])])
+        total_transito = len(df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] == "Envío a Laboratorio"])
+        total_listas = len(df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] == "Resultado Listo"])
         
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-        col_k1.metric("Total Histórico", total_pruebas)
+        col_k1.metric("Total de Pruebas Reales", total_pruebas)
         col_k2.metric("Pruebas Activas (En proceso)", total_activas)
         col_k3.metric("En Tránsito (Courier)", total_transito)
         col_k4.metric("Resultados Listos", total_listas)
         
         st.markdown("<hr>", unsafe_allow_html=True)
         
-        # --- 2. GRÁFICO DE EMBUDO (FUNNEL) ---
+        # --- 2. GRÁFICA DE DONA (REEMPLAZA AL EMBUDO) ---
         st.subheader("Estado Global de Pruebas")
-        df_funnel = df_ventas[df_ventas['CATEGORIA_ESTADO'] != 'Cancelada'].groupby('CATEGORIA_ESTADO').size().reset_index(name='Cantidad')
-        orden_etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
+        df_dona = df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] != 'Cancelada'].groupby('CATEGORIA_ESTADO').size().reset_index(name='Cantidad')
         
-        fig_funnel = px.funnel(
-            df_funnel, 
-            x='Cantidad', 
-            y='CATEGORIA_ESTADO', 
-            category_orders={"CATEGORIA_ESTADO": orden_etapas},
-            template="plotly_dark",
-            color_discrete_sequence=['#5C95A6']
+        # Paleta de colores acorde al diseño corporativo
+        colores_dona = ['#5C95A6', '#87A98A', '#FF9F1C', '#A3C1CC', '#2EC4B6']
+        
+        fig_dona = px.pie(
+            df_dona, 
+            values='Cantidad', 
+            names='CATEGORIA_ESTADO', 
+            hole=0.45, 
+            template="plotly_dark", 
+            color_discrete_sequence=colores_dona
         )
-        fig_funnel.update_layout(margin=dict(t=20, b=20, l=0, r=0))
-        st.plotly_chart(fig_funnel, use_container_width=True)
+        fig_dona.update_traces(textposition='inside', textinfo='percent+label')
+        fig_dona.update_layout(margin=dict(t=20, b=20, l=0, r=0), showlegend=True)
+        st.plotly_chart(fig_dona, use_container_width=True)
         
         st.markdown("<hr>", unsafe_allow_html=True)
         
@@ -690,10 +701,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         with col_f1:
             filtro_estado = st.selectbox("Filtrar por Etapa del Proceso:", ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo", "Cancelada"])
         with col_f2:
-            lista_vend = ["Todos"] + sorted([str(x) for x in df_ventas['VENDEDOR'].dropna().unique() if str(x).strip() != '' and str(x).upper() != 'NAN'])
+            lista_vend = ["Todos"] + sorted([str(x) for x in df_ventas_reales['VENDEDOR'].dropna().unique() if str(x).strip() != '' and str(x).upper() != 'NAN'])
             filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
             
-        df_filtrado = df_ventas.copy()
+        df_filtrado = df_ventas_reales.copy()
         if filtro_estado != "Todos":
             df_filtrado = df_filtrado[df_filtrado['CATEGORIA_ESTADO'] == filtro_estado]
         if filtro_vendedor != "Todos":
@@ -716,7 +727,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             paciente_seleccionado = st.selectbox("Seleccione un Paciente para ver Detalles, Alertas y Bitácora:", ["Seleccione un paciente..."] + sorted(lista_pacientes))
             
         if paciente_seleccionado != "Seleccione un paciente...":
-            datos_paciente = df_ventas[df_ventas['PACIENTE'] == paciente_seleccionado].iloc[-1]
+            datos_paciente = df_ventas_reales[df_ventas_reales['PACIENTE'] == paciente_seleccionado].iloc[-1]
             
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
@@ -726,15 +737,17 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
+                etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
+                etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
+                
                 cat_actual = datos_paciente['CATEGORIA_ESTADO']
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
                     idx_actual = 0
                 else:
-                    idx_actual = orden_etapas.index(cat_actual) if cat_actual in orden_etapas else 0
+                    idx_actual = etapas.index(cat_actual) if cat_actual in etapas else 0
                 
-                progress_percentage = (idx_actual / (len(orden_etapas) - 1)) * 100
-                etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
+                progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
                 
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
