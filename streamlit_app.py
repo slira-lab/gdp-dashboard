@@ -604,7 +604,6 @@ if modulo_seleccionado == "Desempeño Médico":
 # ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
 
-    # --- BANNER AÑADIDO PARA EL MÓDULO 2 ---
     st.markdown("""
     <div class="brand-banner">
       <div class="brand-left">
@@ -622,13 +621,18 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
     else:
-        # --- FILTRO ESTRICTO: IGNORAR REGISTROS VACÍOS O FANTASMAS ---
+        # --- FILTRO ESTRICTO: LIMPIEZA DE FILAS VACÍAS, TOTALES Y DUPLICADOS (PARA OBTENER LAS 72 REALES) ---
         df_ventas_reales = df_ventas[
             (df_ventas['PACIENTE'].astype(str).str.strip() != '') &
             (df_ventas['PACIENTE'].astype(str).str.upper() != 'NAN') &
             (df_ventas['FOLIO'].astype(str).str.strip() != '') &
             (df_ventas['FOLIO'].astype(str).str.upper() != 'NAN')
         ].copy()
+        
+        # Eliminamos cualquier fila que sea un "Total" arrastrado de Excel
+        df_ventas_reales = df_ventas_reales[~df_ventas_reales['PACIENTE'].astype(str).str.upper().str.contains('TOTAL')]
+        # Eliminamos duplicados por si se copió un Folio dos veces
+        df_ventas_reales = df_ventas_reales.drop_duplicates(subset=['FOLIO', 'PACIENTE'])
         
         status_cols = [c for c in df_ventas_reales.columns if 'STATUS' in c]
         fecha_cols = [c for c in df_ventas_reales.columns if 'FECHA' in c]
@@ -675,10 +679,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         st.markdown("<hr>", unsafe_allow_html=True)
         
         # --- 2. GRÁFICA DE DONA (REEMPLAZA AL EMBUDO) ---
-        st.subheader("Estado Global de Pruebas")
+        st.subheader("Distribución Actual del Proceso")
         df_dona = df_ventas_reales[df_ventas_reales['CATEGORIA_ESTADO'] != 'Cancelada'].groupby('CATEGORIA_ESTADO').size().reset_index(name='Cantidad')
         
-        # Paleta de colores acorde al diseño corporativo
         colores_dona = ['#5C95A6', '#87A98A', '#FF9F1C', '#A3C1CC', '#2EC4B6']
         
         fig_dona = px.pie(
@@ -773,20 +776,33 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 st.markdown(html_stepper, unsafe_allow_html=True)
                 
             with col_details:
-                # --- CÁLCULO DE TIEMPO (TAT) ---
-                fechas_raw = [datos_paciente.get(c) for c in fecha_cols]
-                fechas_validas = pd.to_datetime(fechas_raw, errors='coerce').dropna()
-                
-                if not fechas_validas.empty:
-                    fecha_inicio = fechas_validas.min()
+                # --- CÁLCULO DE TIEMPO (TAT) CORREGIDO Y PRECISO ---
+                # Ahora solo toma en cuenta fechas que sí estén ligadas a un cambio de estatus
+                fechas_validas_list = []
+                for f_col, s_col in zip(fecha_cols, status_cols):
+                    f_val = str(datos_paciente.get(f_col, '')).strip()
+                    s_val = str(datos_paciente.get(s_col, '')).strip()
+                    if s_val and s_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
+                        if ' ' in f_val:
+                            f_val = f_val.split()[0]
+                        # Forzamos formato DD/MM/YYYY para evitar saltos de meses incorrectos
+                        dt = pd.to_datetime(f_val, dayfirst=True, errors='coerce')
+                        if not pd.isna(dt):
+                            fechas_validas_list.append(dt)
+                            
+                if fechas_validas_list:
+                    fechas_validas_series = pd.Series(fechas_validas_list)
+                    fecha_inicio = fechas_validas_series.min()
+                    
                     if cat_actual == "Resultado Listo":
-                        fecha_fin = fechas_validas.max()
+                        fecha_fin = fechas_validas_series.max()
                         dias = (fecha_fin - fecha_inicio).days
                         tat_text = f"<span style='color: #2EC4B6;'>{dias} días (Proceso Terminado)</span>"
                     elif cat_actual == "Cancelada":
                         tat_text = "<span style='color: #FF4B4B;'>Prueba Cancelada</span>"
                     else:
-                        dias = (pd.Timestamp.today() - fecha_inicio).days
+                        dias = (pd.Timestamp.today().normalize() - fecha_inicio.normalize()).days
+                        dias = max(0, dias) # Evita números negativos por zonas horarias
                         color_tat = "#FF9F1C" if dias > 10 else "#FFFFFF"
                         tat_text = f"<span style='color: {color_tat};'>{dias} días transcurridos</span>"
                 else:
@@ -826,7 +842,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 fecha_val = str(datos_paciente.get(f_col, '')).strip()
                 status_val = str(datos_paciente.get(s_col, '')).strip()
                 if status_val and status_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
-                    # Cortamos la hora para que solo quede la fecha
                     if ' ' in fecha_val:
                         fecha_limpia = fecha_val.split()[0]
                     else:
