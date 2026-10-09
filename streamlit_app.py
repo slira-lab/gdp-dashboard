@@ -603,6 +603,19 @@ if modulo_seleccionado == "Desempeño Médico":
 # 5. MÓDULO 2: SEGUIMIENTO DE PRUEBAS
 # ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
+
+    # --- BANNER AÑADIDO PARA EL MÓDULO 2 ---
+    st.markdown("""
+    <div class="brand-banner">
+      <div class="brand-left">
+        <span class="brand-south">South</span><span class="brand-genetics">Genetics</span>
+      </div>
+      <div class="brand-right">
+        <span class="brand-country">México</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("<h1 class='titulo-principal'>Seguimiento y Estatus de Pruebas</h1>", unsafe_allow_html=True)
     st.markdown("<p class='descripcion-modulo'>Consulte la bitácora operativa y monitoree el progreso en tiempo real de las pruebas genéticas solicitadas.</p>", unsafe_allow_html=True)
     
@@ -621,7 +634,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas['ESTADO_ACTUAL'] = df_ventas.apply(get_current_status, axis=1)
         
-        # --- NUEVO MAPEO MÁS ESPECÍFICO (5 ETAPAS) ---
         def map_status_category(estado):
             estado = str(estado).upper()
             if any(x in estado for x in ['PROSPECTO', 'SOLICITUD', 'PENDIENTE']):
@@ -670,7 +682,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
-                # --- NUEVO STEPPER (5 ETAPAS VISUALES) ---
                 etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
                 etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
                 
@@ -683,7 +694,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100
                 
-                # Ajustamos la línea de fondo (width: 80% y left: 10%) para que encaje exacto con los 5 puntos
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
 <div style="position: absolute; top: 17px; left: 10%; width: 80%; height: 4px; background-color: #333333; z-index: 0;"></div>
@@ -724,13 +734,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
             
-            # --- TABLA DE HISTORIAL (SIN COLUMNA DE HORA) ---
             historial = []
             for f_col, s_col in zip(fecha_cols, status_cols):
                 fecha_val = str(datos_paciente.get(f_col, '')).strip()
                 status_val = str(datos_paciente.get(s_col, '')).strip()
                 if status_val and status_val.upper() not in ['NAN', 'NONE', 'NAT', '']:
-                    # Cortamos cualquier hora que venga junto con la fecha
                     if ' ' in fecha_val:
                         fecha_limpia = fecha_val.split()[0]
                     else:
