@@ -20,7 +20,7 @@ MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
-    "En Tránsito / Courier": 2,
+    "Envío a Lab": 2,
     "En Análisis (Lab)": 3,
     "Resultado Listo": 4,
     "Cancelada": 5,
@@ -62,9 +62,11 @@ def get_status_category(estado):
         return "Solicitud Registrada"
     if any(x in normalized for x in ["RECOLECCION", "CORTES", "ENTREGA", "TOMA"]):
         return "Toma / Recolección"
-    if any(x in normalized for x in ["ENVIO", "TRANSITO", "COURIER"]):
-        return "En Tránsito / Courier"
-    if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION"]):
+    # Prioridad 1: Si dice envío, se va a Envío a Lab
+    if any(x in normalized for x in ["ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
+        return "Envío a Lab"
+    # Prioridad 2: Si ya está en lab, se va a Análisis
+    if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION", "LAB"]):
         return "En Análisis (Lab)"
     if any(x in normalized for x in ["RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
         return "Resultado Listo"
@@ -814,7 +816,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         with col_f2:
             filtro_estado = st.selectbox(
                 "Filtrar por Etapa del Proceso:",
-                ["Todos", "Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
+                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
             )
 
         df_filtrado = df_ventas_reales.copy()
@@ -825,13 +827,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         total_pruebas = len(df_filtrado)
         total_activas = len(df_filtrado[~df_filtrado["CATEGORIA_ESTADO"].isin(["Resultado Listo", "Cancelada"])])
-        total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "En Tránsito / Courier"])
+        total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Envío a Lab"])
         total_listas = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"])
 
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
         col_k1.metric("Total de Pruebas", total_pruebas)
         col_k2.metric("Pruebas Activas (En proceso)", total_activas)
-        col_k3.metric("En Tránsito (Courier)", total_transito)
+        col_k3.metric("Enviadas a Lab", total_transito)
         col_k4.metric("Resultados Listos", total_listas)
 
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -841,7 +843,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
-            "En Tránsito / Courier": "#FF9F1C",
+            "Envío a Lab": "#FF9F1C",
             "En Análisis (Lab)": "#A3C1CC",
             "Resultado Listo": "#2EC4B6",
             "Cancelada": "#FF4B4B",
@@ -888,7 +890,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "MEDICO": st.column_config.TextColumn("Médico", width="medium"),
                 "PRUEBA": st.column_config.TextColumn("Prueba", width="medium"),
                 "VENDEDOR": st.column_config.TextColumn("Representante", width="medium"),
-                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
+                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
             },
         )
@@ -910,8 +912,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
-                etapas = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
-                etapas_labels = etapas # Usamos exactamente los mismos nombres
+                etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo"]
+                etapas_labels = etapas
 
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
                 idx_actual = 0
