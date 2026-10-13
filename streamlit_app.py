@@ -16,7 +16,6 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
-# --- ACTUALIZACIÓN DE TÉRMINOS HOMOLOGADOS ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
@@ -62,10 +61,8 @@ def get_status_category(estado):
         return "Solicitud Registrada"
     if any(x in normalized for x in ["RECOLECCION", "CORTES", "ENTREGA", "TOMA"]):
         return "Toma / Recolección"
-    # Prioridad 1: Si dice envío, se va a Envío a Lab
     if any(x in normalized for x in ["ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
         return "Envío a Lab"
-    # Prioridad 2: Si ya está en lab, se va a Análisis
     if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION", "LAB"]):
         return "En Análisis (Lab)"
     if any(x in normalized for x in ["RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
@@ -916,9 +913,23 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 etapas_labels = etapas
 
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
+                
+                # --- LÓGICA DE CANCELACIÓN (BUSCA EL ESTADO ANTERIOR VÁLIDO) ---
+                is_cancelled = False
                 idx_actual = 0
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
+                    is_cancelled = True
+                    
+                    ultimo_valido = "Solicitud Registrada"
+                    for sc in reversed(status_cols):
+                        val = normalize_status_value(datos_paciente.get(sc, ""))
+                        if val and "CANCELADA" not in val.upper():
+                            ultimo_valido = get_status_category(val)
+                            break
+                            
+                    if ultimo_valido in etapas:
+                        idx_actual = etapas.index(ultimo_valido)
                 elif cat_actual in etapas:
                     idx_actual = etapas.index(cat_actual)
 
@@ -932,8 +943,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
                         icon, color, text_color, sub_text = "✔", "#5C95A6", "#FFFFFF", "Completado"
-                    elif i == idx_actual and cat_actual != "Cancelada":
-                        icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
+                    elif i == idx_actual:
+                        if is_cancelled:
+                            icon, color, text_color, sub_text = "✖", "#FF4B4B", "#FF4B4B", "Cancelado aquí"
+                        else:
+                            icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
                     else:
                         icon, color, text_color, sub_text = "", "#333333", "#888888", "Pendiente"
 
