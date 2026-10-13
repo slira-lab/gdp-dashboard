@@ -15,11 +15,13 @@ MONTHS_ES = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+# --- ACTUALIZACIÓN DE TÉRMINOS HOMOLOGADOS ---
 ESTADO_ORDER = {
-    "Solicitud Creada": 0,
-    "Recolección de Muestra": 1,
-    "Envío a Laboratorio": 2,
-    "En Laboratorio": 3,
+    "Solicitud Registrada": 0,
+    "Toma / Recolección": 1,
+    "En Tránsito / Courier": 2,
+    "En Análisis (Lab)": 3,
     "Resultado Listo": 4,
     "Cancelada": 5,
     "Sin información": 6,
@@ -57,18 +59,18 @@ def build_month_columns(prefix):
 def get_status_category(estado):
     normalized = str(estado or "").upper()
     if any(x in normalized for x in ["PROSPECTO", "SOLICITUD", "PENDIENTE"]):
-        return "Solicitud Creada"
+        return "Solicitud Registrada"
     if any(x in normalized for x in ["RECOLECCION", "CORTES", "ENTREGA", "TOMA"]):
-        return "Recolección de Muestra"
+        return "Toma / Recolección"
     if any(x in normalized for x in ["ENVIO", "TRANSITO", "COURIER"]):
-        return "Envío a Laboratorio"
+        return "En Tránsito / Courier"
     if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION"]):
-        return "En Laboratorio"
+        return "En Análisis (Lab)"
     if any(x in normalized for x in ["RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
         return "Resultado Listo"
     if "CANCELADA" in normalized:
         return "Cancelada"
-    return "Solicitud Creada"
+    return "Solicitud Registrada"
 
 # ==========================================
 # 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
@@ -812,7 +814,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         with col_f2:
             filtro_estado = st.selectbox(
                 "Filtrar por Etapa del Proceso:",
-                ["Todos", "Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo", "Cancelada"],
+                ["Todos", "Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
             )
 
         df_filtrado = df_ventas_reales.copy()
@@ -823,7 +825,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         total_pruebas = len(df_filtrado)
         total_activas = len(df_filtrado[~df_filtrado["CATEGORIA_ESTADO"].isin(["Resultado Listo", "Cancelada"])])
-        total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Envío a Laboratorio"])
+        total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "En Tránsito / Courier"])
         total_listas = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"])
 
         col_k1, col_k2, col_k3, col_k4 = st.columns(4)
@@ -837,10 +839,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
         colores_dona_map = {
-            "Solicitud Creada": "#5C95A6",
-            "Recolección de Muestra": "#87A98A",
-            "Envío a Laboratorio": "#FF9F1C",
-            "En Laboratorio": "#A3C1CC",
+            "Solicitud Registrada": "#5C95A6",
+            "Toma / Recolección": "#87A98A",
+            "En Tránsito / Courier": "#FF9F1C",
+            "En Análisis (Lab)": "#A3C1CC",
             "Resultado Listo": "#2EC4B6",
             "Cancelada": "#FF4B4B",
         }
@@ -886,7 +888,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "MEDICO": st.column_config.TextColumn("Médico", width="medium"),
                 "PRUEBA": st.column_config.TextColumn("Prueba", width="medium"),
                 "VENDEDOR": st.column_config.TextColumn("Representante", width="medium"),
-                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
+                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
             },
         )
@@ -908,10 +910,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
-                etapas = ["Solicitud Creada", "Recolección de Muestra", "Envío a Laboratorio", "En Laboratorio", "Resultado Listo"]
-                etapas_labels = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
+                etapas = ["Solicitud Registrada", "Toma / Recolección", "En Tránsito / Courier", "En Análisis (Lab)", "Resultado Listo"]
+                etapas_labels = etapas # Usamos exactamente los mismos nombres
 
-                cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Creada")
+                cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
                 idx_actual = 0
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
