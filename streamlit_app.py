@@ -16,14 +16,16 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
+# --- ACTUALIZACIÓN DE ETAPAS (INCLUYE ORDEN DE COMPRA) ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
     "Envío a Lab": 2,
-    "En Análisis (Lab)": 3,
-    "Resultado Listo": 4,
-    "Cancelada": 5,
-    "Sin información": 6,
+    "Orden de Compra": 3,
+    "En Análisis (Lab)": 4,
+    "Resultado Listo": 5,
+    "Cancelada": 6,
+    "Sin información": 7,
 }
 
 
@@ -63,6 +65,8 @@ def get_status_category(estado):
         return "Toma / Recolección"
     if any(x in normalized for x in ["ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
         return "Envío a Lab"
+    if any(x in normalized for x in ["ORDEN", "COMPRA", "OC", "O.C."]):
+        return "Orden de Compra"
     if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION", "LAB"]):
         return "En Análisis (Lab)"
     if any(x in normalized for x in ["RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
@@ -795,6 +799,20 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         status_cols = [c for c in df_ventas_reales.columns if "STATUS" in c.upper()]
         fecha_cols = [c for c in df_ventas_reales.columns if "FECHA" in c.upper()]
 
+        # --- LÓGICA PARA ASIGNAR EL MES DE REGISTRO DE LA PRUEBA ---
+        def get_month_from_row(row):
+            for fc in fecha_cols:
+                val = normalize_status_value(row.get(fc, ""))
+                if val:
+                    if " " in val:
+                        val = val.split()[0]
+                    dt = pd.to_datetime(val, dayfirst=True, errors="coerce")
+                    if pd.notna(dt):
+                        return MONTHS_ES[dt.month - 1]
+            return "Sin fecha"
+            
+        df_ventas_reales["MES_REGISTRO"] = df_ventas_reales.apply(get_month_from_row, axis=1)
+
         def get_current_status(row):
             for sc in reversed(status_cols):
                 val = normalize_status_value(row.get(sc, ""))
@@ -805,22 +823,32 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         df_ventas_reales["ESTADO_ACTUAL"] = df_ventas_reales.apply(get_current_status, axis=1)
         df_ventas_reales["CATEGORIA_ESTADO"] = df_ventas_reales["ESTADO_ACTUAL"].map(get_status_category)
 
+        # --- TRES FILTROS OPERATIVOS ---
         st.subheader("Búsqueda y Filtros Operativos")
-        col_f1, col_f2 = st.columns(2)
+        col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             lista_vend = ["Todos"] + safe_unique_values(df_ventas_reales.get("VENDEDOR", pd.Series([], dtype=str)))
             filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
         with col_f2:
             filtro_estado = st.selectbox(
                 "Filtrar por Etapa del Proceso:",
-                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
+                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
             )
+        with col_f3:
+            meses_presentes = df_ventas_reales["MES_REGISTRO"].unique().tolist()
+            lista_meses = ["Todos"] + [m for m in MONTHS_ES if m in meses_presentes]
+            if "Sin fecha" in meses_presentes:
+                lista_meses.append("Sin fecha")
+            filtro_mes = st.selectbox("Filtrar por Mes:", lista_meses)
 
+        # APLICAR FILTROS EN CADENA
         df_filtrado = df_ventas_reales.copy()
         if filtro_vendedor != "Todos":
             df_filtrado = df_filtrado[df_filtrado["VENDEDOR"].astype(str).str.strip() == filtro_vendedor]
         if filtro_estado != "Todos":
             df_filtrado = df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == filtro_estado]
+        if filtro_mes != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["MES_REGISTRO"] == filtro_mes]
 
         total_pruebas = len(df_filtrado)
         total_activas = len(df_filtrado[~df_filtrado["CATEGORIA_ESTADO"].isin(["Resultado Listo", "Cancelada"])])
@@ -837,10 +865,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
+        
+        # --- COLORES PARA LA DONA (INCLUYE ORDEN DE COMPRA) ---
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
             "Envío a Lab": "#FF9F1C",
+            "Orden de Compra": "#E2A973",
             "En Análisis (Lab)": "#A3C1CC",
             "Resultado Listo": "#2EC4B6",
             "Cancelada": "#FF4B4B",
@@ -887,7 +918,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "MEDICO": st.column_config.TextColumn("Médico", width="medium"),
                 "PRUEBA": st.column_config.TextColumn("Prueba", width="medium"),
                 "VENDEDOR": st.column_config.TextColumn("Representante", width="medium"),
-                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
+                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
             },
         )
@@ -909,25 +940,24 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
-                etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo"]
+                
+                # --- NUEVA ESTRUCTURA DEL STEPPER (6 PASOS) ---
+                etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo"]
                 etapas_labels = etapas
 
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
                 
-                # --- LÓGICA DE CANCELACIÓN (BUSCA EL ESTADO ANTERIOR VÁLIDO) ---
                 is_cancelled = False
                 idx_actual = 0
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
                     is_cancelled = True
-                    
                     ultimo_valido = "Solicitud Registrada"
                     for sc in reversed(status_cols):
                         val = normalize_status_value(datos_paciente.get(sc, ""))
                         if val and "CANCELADA" not in val.upper():
                             ultimo_valido = get_status_category(val)
                             break
-                            
                     if ultimo_valido in etapas:
                         idx_actual = etapas.index(ultimo_valido)
                 elif cat_actual in etapas:
@@ -937,8 +967,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
-<div style="position: absolute; top: 17px; left: 10%; width: 80%; height: 4px; background-color: #333333; z-index: 0;"></div>
-<div style="position: absolute; top: 17px; left: 10%; width: {progress_percentage * 0.80}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
+<div style="position: absolute; top: 17px; left: 8%; width: 84%; height: 4px; background-color: #333333; z-index: 0;"></div>
+<div style="position: absolute; top: 17px; left: 8%; width: {progress_percentage * 0.84}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
 """
                 for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
