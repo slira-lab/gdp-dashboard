@@ -6,6 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 import requests
+from datetime import datetime, timedelta
 
 # ==========================================
 # 0. CONSTANTES Y UTILIDADES
@@ -16,7 +17,6 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
-# --- ACTUALIZACIÓN DE ETAPAS (INCLUYE ORDEN DE COMPRA) ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
@@ -400,7 +400,9 @@ def load_data():
         except Exception:
             df_ventas = pd.DataFrame()
 
-    return df_medicos, df_fact, df_ventas
+    # Se guarda el timestamp de la descarga actual
+    ultima_act = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y a las %I:%M %p")
+    return df_medicos, df_fact, df_ventas, ultima_act
 
 
 @st.cache_data(ttl=3600)
@@ -415,7 +417,7 @@ def get_geojson():
 
 
 try:
-    df_medicos, df_fact, df_ventas = load_data()
+    df_medicos, df_fact, df_ventas, ultima_act = load_data()
     mexico_geojson = get_geojson()
 except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
@@ -444,6 +446,13 @@ st.sidebar.markdown("---")
 if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar la descarga de datos nuevos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
+
+# --- SELLO DE ÚLTIMA ACTUALIZACIÓN ---
+st.sidebar.markdown(f"""
+<div style="text-align: center; color: #87A98A; font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;">
+    ⏳ Última actualización:<br><b>{ultima_act}</b>
+</div>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 4. MÓDULO 1: DESEMPEÑO MÉDICO
@@ -825,7 +834,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         st.subheader("Búsqueda y Filtros Operativos")
         col_f1, col_f2, col_f3 = st.columns(3)
         
-        # --- REORGANIZACIÓN DE FILTROS ---
         with col_f1:
             meses_presentes = df_ventas_reales["MES_REGISTRO"].unique().tolist()
             lista_meses = ["Todos"] + [m for m in MONTHS_ES if m in meses_presentes]
@@ -856,16 +864,42 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Envío a Lab"])
         total_listas = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"])
 
-        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        # --- CÁLCULO DE TAT PROMEDIO (Solo para pruebas terminadas) ---
+        tat_promedio = 0
+        tat_dias = []
+        df_listas = df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"]
+        
+        for _, row in df_listas.iterrows():
+            fechas_validas = []
+            for f_col, s_col in zip(fecha_cols, status_cols):
+                f_val = normalize_status_value(row.get(f_col, ""))
+                s_val = normalize_status_value(row.get(s_col, ""))
+                if s_val:
+                    if " " in f_val:
+                        f_val = f_val.split()[0]
+                    dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
+                    if pd.notna(dt):
+                        fechas_validas.append(dt)
+            if fechas_validas:
+                s_fechas = pd.Series(fechas_validas)
+                tat_dias.append((s_fechas.max() - s_fechas.min()).days)
+                
+        if tat_dias:
+            tat_promedio = sum(tat_dias) / len(tat_dias)
+
+        # --- SE AGREGAN LAS 5 COLUMNAS PARA INCLUIR EL TAT PROMEDIO ---
+        col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
         col_k1.metric("Total de Pruebas", total_pruebas)
-        col_k2.metric("Pruebas Activas (En proceso)", total_activas)
+        col_k2.metric("Pruebas Activas", total_activas)
         col_k3.metric("Enviadas a Lab", total_transito)
         col_k4.metric("Resultados Listos", total_listas)
+        col_k5.metric("TAT Promedio", f"{int(tat_promedio)} días" if tat_dias else "N/A")
 
         st.markdown("<hr>", unsafe_allow_html=True)
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
+        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -939,6 +973,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
+                
                 etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo"]
                 etapas_labels = etapas
 
