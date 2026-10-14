@@ -8,9 +8,6 @@ import json
 import requests
 from datetime import datetime, timedelta
 
-# ==========================================
-# 0. CONSTANTES Y UTILIDADES
-# ==========================================
 MONTHS_ES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -28,19 +25,16 @@ ESTADO_ORDER = {
     "Sin información": 7,
 }
 
-
 def clean_string(value):
     if pd.isna(value):
         return ""
     return str(value).strip()
-
-
+    
 def normalize_status_value(value):
     s = clean_string(value)
     if not s or s.upper() in ["NAN", "NONE", "NAT", "NULL"]:
         return ""
     return s
-
 
 def safe_unique_values(series):
     values = []
@@ -52,10 +46,8 @@ def safe_unique_values(series):
             values.append(v)
     return sorted(set(values))
 
-
 def build_month_columns(prefix):
     return [f"{prefix} {month}" for month in MONTHS_ES]
-
 
 def get_status_category(estado):
     normalized = str(estado or "").upper()
@@ -75,9 +67,6 @@ def get_status_category(estado):
         return "Cancelada"
     return "Solicitud Registrada"
 
-# ==========================================
-# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
-# ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -246,9 +235,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. CONEXIÓN A DATOS, MONEDA Y MAPAS
-# ==========================================
 @st.cache_data(ttl=600)
 def load_data():
     cred_dict = json.loads(st.secrets["google_credentials"])
@@ -282,8 +268,7 @@ def load_data():
             elif "CANTIDAD" in str(col).upper():
                 df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         return df
-
-    # --- DATOS MÉDICOS ---
+        
     datos_medicos = doc.worksheet("MEDICOS").get_all_values()
     if datos_medicos:
         idx_med = next((i for i, row in enumerate(datos_medicos) if "NOMBRE" in str(row)), None)
@@ -357,8 +342,6 @@ def load_data():
             default_coord = [19.4326, -99.1332]
             df_medicos["lat"] = df_medicos["TERRITORIO"].map(lambda x: coords.get(str(x).strip(), default_coord)[0])
             df_medicos["lon"] = df_medicos["TERRITORIO"].map(lambda x: coords.get(str(x).strip(), default_coord)[1])
-
-    # --- DATOS FACTURACIÓN ---
     datos_fact = doc.worksheet("FACTURACION").get_all_values()
     if datos_fact:
         idx_fac = next((i for i, row in enumerate(datos_fact) if "NOMBRE" in str(row)), None)
@@ -370,11 +353,8 @@ def load_data():
             df_fact = pd.DataFrame()
     else:
         df_fact = pd.DataFrame()
-
     if not df_fact.empty:
         df_fact = parse_numeric_columns(df_fact)
-
-    # --- DATOS VENTAS ---
     try:
         datos_ventas = doc.worksheet("VENTAS").get_all_values()
         if datos_ventas:
@@ -399,12 +379,8 @@ def load_data():
             df_ventas.columns = df_ventas.columns.str.upper()
         except Exception:
             df_ventas = pd.DataFrame()
-
-    # Se guarda el timestamp de la descarga actual
     ultima_act = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y a las %I:%M %p")
     return df_medicos, df_fact, df_ventas, ultima_act
-
-
 @st.cache_data(ttl=3600)
 def get_geojson():
     url = "https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json"
@@ -423,9 +399,6 @@ except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
     st.stop()
 
-# ==========================================
-# 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
-# ==========================================
 try:
     st.sidebar.image("LOGO SG (1) (2) (1).png", use_container_width=True)
 except Exception:
@@ -446,17 +419,12 @@ st.sidebar.markdown("---")
 if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar la descarga de datos nuevos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
-
-# --- SELLO DE ÚLTIMA ACTUALIZACIÓN ---
 st.sidebar.markdown(f"""
 <div style="text-align: center; color: #87A98A; font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;">
-    ⏳ Última actualización:<br><b>{ultima_act}</b>
+    Última actualización:<br><b>{ultima_act}</b>
 </div>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 4. MÓDULO 1: DESEMPEÑO MÉDICO
-# ==========================================
 if modulo_seleccionado == "Desempeño Médico":
     if "acceso_modulo_1" not in st.session_state:
         st.session_state["acceso_modulo_1"] = False
@@ -670,7 +638,6 @@ if modulo_seleccionado == "Desempeño Médico":
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
                 st.info("No hay ventas registradas para generar el desglose.")
-
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
             st.markdown(f"""
@@ -771,9 +738,6 @@ if modulo_seleccionado == "Desempeño Médico":
             else:
                 st.info("Sin datos para generar ranking.")
 
-# ==========================================
-# 5. MÓDULO 2: SEGUIMIENTO DE PRUEBAS
-# ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
     st.markdown("""
 <div class="brand-banner">
@@ -863,8 +827,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         total_activas = len(df_filtrado[~df_filtrado["CATEGORIA_ESTADO"].isin(["Resultado Listo", "Cancelada"])])
         total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Envío a Lab"])
         total_listas = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"])
-
-        # --- CÁLCULO DE TAT PROMEDIO (Solo para pruebas terminadas) ---
         tat_promedio = 0
         tat_dias = []
         df_listas = df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"]
@@ -883,23 +845,17 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             if fechas_validas:
                 s_fechas = pd.Series(fechas_validas)
                 tat_dias.append((s_fechas.max() - s_fechas.min()).days)
-                
         if tat_dias:
             tat_promedio = sum(tat_dias) / len(tat_dias)
-
-        # --- SE AGREGAN LAS 5 COLUMNAS PARA INCLUIR EL TAT PROMEDIO ---
         col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
         col_k1.metric("Total de Pruebas", total_pruebas)
         col_k2.metric("Pruebas Activas", total_activas)
         col_k3.metric("Enviadas a Lab", total_transito)
         col_k4.metric("Resultados Listos", total_listas)
         col_k5.metric("TAT Promedio", f"{int(tat_promedio)} días" if tat_dias else "N/A")
-
         st.markdown("<hr>", unsafe_allow_html=True)
-
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
-        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -909,7 +865,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             "Resultado Listo": "#2EC4B6",
             "Cancelada": "#FF4B4B",
         }
-
         if not df_dona.empty:
             fig_dona = px.pie(
                 df_dona,
@@ -925,21 +880,16 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.plotly_chart(fig_dona, use_container_width=True)
         else:
             st.info("No hay datos para mostrar en la gráfica con los filtros seleccionados.")
-
         st.markdown("<hr>", unsafe_allow_html=True)
-
         st.markdown("<h4 style='color: #B4B4B4; font-size: 1.1rem;'>Tabla de Trabajo Operativo</h4>", unsafe_allow_html=True)
         columnas_tabla = ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL"]
         df_tabla = df_filtrado.reindex(columns=[c for c in columnas_tabla if c in df_filtrado.columns]).copy()
-
         for col in [c for c in columnas_tabla if c in df_tabla.columns]:
             df_tabla[col] = df_tabla[col].map(lambda x: clean_string(x) if not pd.isna(x) else "")
-
         df_tabla["CATEGORIA_ESTADO"] = df_tabla["CATEGORIA_ESTADO"].replace({"": "Sin información"})
         df_tabla["ESTADO_ACTUAL"] = df_tabla["ESTADO_ACTUAL"].replace({"": "Sin información"})
         df_tabla["__orden_estado__"] = df_tabla["CATEGORIA_ESTADO"].map(ESTADO_ORDER).fillna(999)
         df_tabla = df_tabla.sort_values(["__orden_estado__", "FOLIO"], ascending=[True, True]).drop(columns="__orden_estado__").reset_index(drop=True)
-
         st.dataframe(
             df_tabla,
             hide_index=True,
