@@ -799,7 +799,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         status_cols = [c for c in df_ventas_reales.columns if "STATUS" in c.upper()]
         fecha_cols = [c for c in df_ventas_reales.columns if "FECHA" in c.upper()]
 
-        # --- LÓGICA PARA ASIGNAR EL MES DE REGISTRO DE LA PRUEBA ---
         def get_month_from_row(row):
             for fc in fecha_cols:
                 val = normalize_status_value(row.get(fc, ""))
@@ -823,32 +822,34 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         df_ventas_reales["ESTADO_ACTUAL"] = df_ventas_reales.apply(get_current_status, axis=1)
         df_ventas_reales["CATEGORIA_ESTADO"] = df_ventas_reales["ESTADO_ACTUAL"].map(get_status_category)
 
-        # --- TRES FILTROS OPERATIVOS ---
         st.subheader("Búsqueda y Filtros Operativos")
         col_f1, col_f2, col_f3 = st.columns(3)
+        
+        # --- REORGANIZACIÓN DE FILTROS ---
         with col_f1:
-            lista_vend = ["Todos"] + safe_unique_values(df_ventas_reales.get("VENDEDOR", pd.Series([], dtype=str)))
-            filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
-        with col_f2:
-            filtro_estado = st.selectbox(
-                "Filtrar por Etapa del Proceso:",
-                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
-            )
-        with col_f3:
             meses_presentes = df_ventas_reales["MES_REGISTRO"].unique().tolist()
             lista_meses = ["Todos"] + [m for m in MONTHS_ES if m in meses_presentes]
             if "Sin fecha" in meses_presentes:
                 lista_meses.append("Sin fecha")
             filtro_mes = st.selectbox("Filtrar por Mes:", lista_meses)
+            
+        with col_f2:
+            lista_vend = ["Todos"] + safe_unique_values(df_ventas_reales.get("VENDEDOR", pd.Series([], dtype=str)))
+            filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
+            
+        with col_f3:
+            filtro_estado = st.selectbox(
+                "Filtrar por Etapa del Proceso:",
+                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
+            )
 
-        # APLICAR FILTROS EN CADENA
         df_filtrado = df_ventas_reales.copy()
+        if filtro_mes != "Todos":
+            df_filtrado = df_filtrado[df_filtrado["MES_REGISTRO"] == filtro_mes]
         if filtro_vendedor != "Todos":
             df_filtrado = df_filtrado[df_filtrado["VENDEDOR"].astype(str).str.strip() == filtro_vendedor]
         if filtro_estado != "Todos":
             df_filtrado = df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == filtro_estado]
-        if filtro_mes != "Todos":
-            df_filtrado = df_filtrado[df_filtrado["MES_REGISTRO"] == filtro_mes]
 
         total_pruebas = len(df_filtrado)
         total_activas = len(df_filtrado[~df_filtrado["CATEGORIA_ESTADO"].isin(["Resultado Listo", "Cancelada"])])
@@ -865,8 +866,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
-        
-        # --- COLORES PARA LA DONA (INCLUYE ORDEN DE COMPRA) ---
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -940,8 +939,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
-                
-                # --- NUEVA ESTRUCTURA DEL STEPPER (6 PASOS) ---
                 etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo"]
                 etapas_labels = etapas
 
