@@ -6,9 +6,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 import requests
-from datetime import datetime, timedelta
-import re
-from dateutil import parser
 
 # ==========================================
 # 0. CONSTANTES Y UTILIDADES
@@ -19,6 +16,7 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
+# --- ACTUALIZACIÓN DE ETAPAS (INCLUYE ORDEN DE COMPRA) ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
@@ -39,7 +37,7 @@ def clean_string(value):
 
 def normalize_status_value(value):
     s = clean_string(value)
-    if not s or s.upper() in {"NAN", "NONE", "N/A", "NA", "NAT", "NULL", "-"}:
+    if not s or s.upper() in ["NAN", "NONE", "NAT", "NULL"]:
         return ""
     return s
 
@@ -76,63 +74,6 @@ def get_status_category(estado):
     if "CANCELADA" in normalized:
         return "Cancelada"
     return "Solicitud Registrada"
-
-
-def parse_numeric_value(value):
-    if pd.isna(value):
-        return 0.0
-    s = str(value).strip()
-    if s == "":
-        return 0.0
-    s = s.replace("$", "").replace(" ", "")
-
-    if "," in s and "." in s:
-        if s.rfind(",") > s.rfind("."):
-            s = s.replace(".", "").replace(",", ".")
-        else:
-            s = s.replace(",", "")
-    elif "," in s:
-        parts = s.split(",")
-        if len(parts[-1]) in (1, 2):
-            s = s.replace(",", ".")
-        else:
-            s = s.replace(",", "")
-    elif "." in s and s.count(".") > 1:
-        s = s.replace(".", "")
-
-    try:
-        return float(s)
-    except Exception:
-        return 0.0
-
-
-def safe_parse_date(value):
-    if pd.isna(value):
-        return pd.NaT
-
-    text = str(value).strip()
-    if not text or text.upper() in {"NAN", "NONE", "N/A", "NA", "NAT", "NULL", "-"}:
-        return pd.NaT
-
-    text = text.replace("T", " ").replace("  ", " ")
-
-    dt = pd.to_datetime(text, dayfirst=True, errors="coerce")
-    if pd.notna(dt):
-        return dt
-
-    try:
-        return pd.Timestamp(parser.parse(text, dayfirst=True))
-    except Exception:
-        return pd.NaT
-
-
-def find_header_index(rows, expected_names):
-    for idx, row in enumerate(rows):
-        row_upper = [str(c).strip().upper() for c in row]
-        if any(name.upper() in row_upper for name in expected_names):
-            return idx
-    return None
-
 
 # ==========================================
 # 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
@@ -331,17 +272,21 @@ def load_data():
         if df.empty:
             return df
         for col in df.columns:
-            col_name = str(col).upper()
-            if "MONTO" in col_name or "INVERSION" in col_name or "INVERSIÓN" in col_name:
-                df[col] = df[col].map(parse_numeric_value).fillna(0)
-            elif "CANTIDAD" in col_name:
-                df[col] = df[col].map(parse_numeric_value).fillna(0)
+            if "MONTO" in str(col).upper() or "INVERSION" in str(col).upper() or "INVERSIÓN" in str(col).upper():
+                df[col] = pd.to_numeric(
+                    df[col].astype(str).str.replace("$", "", regex=False)
+                    .str.replace(".", "", regex=False)
+                    .str.replace(",", ".", regex=False),
+                    errors="coerce",
+                ).fillna(0)
+            elif "CANTIDAD" in str(col).upper():
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         return df
 
     # --- DATOS MÉDICOS ---
     datos_medicos = doc.worksheet("MEDICOS").get_all_values()
     if datos_medicos:
-        idx_med = find_header_index(datos_medicos, ["NOMBRE"])
+        idx_med = next((i for i, row in enumerate(datos_medicos) if "NOMBRE" in str(row)), None)
         if idx_med is not None:
             df_medicos = pd.DataFrame(datos_medicos[idx_med + 1 :], columns=datos_medicos[idx_med])
             df_medicos = normalize_columns(df_medicos)
@@ -416,7 +361,7 @@ def load_data():
     # --- DATOS FACTURACIÓN ---
     datos_fact = doc.worksheet("FACTURACION").get_all_values()
     if datos_fact:
-        idx_fac = find_header_index(datos_fact, ["NOMBRE"])
+        idx_fac = next((i for i, row in enumerate(datos_fact) if "NOMBRE" in str(row)), None)
         if idx_fac is not None:
             df_fact = pd.DataFrame(datos_fact[idx_fac + 1 :], columns=datos_fact[idx_fac])
             df_fact = normalize_columns(df_fact)
@@ -433,7 +378,7 @@ def load_data():
     try:
         datos_ventas = doc.worksheet("VENTAS").get_all_values()
         if datos_ventas:
-            idx_ven = find_header_index(datos_ventas, ["PACIENTE", "FOLIO"]) or 0
+            idx_ven = next((i for i, row in enumerate(datos_ventas) if "PACIENTE" in str(row).upper() or "FOLIO" in str(row).upper()), 0)
             headers = datos_ventas[idx_ven]
             counts = {}
             new_headers = []
@@ -455,8 +400,7 @@ def load_data():
         except Exception:
             df_ventas = pd.DataFrame()
 
-    ultima_act = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y a las %I:%M %p")
-    return df_medicos, df_fact, df_ventas, ultima_act
+    return df_medicos, df_fact, df_ventas
 
 
 @st.cache_data(ttl=3600)
@@ -471,7 +415,7 @@ def get_geojson():
 
 
 try:
-    df_medicos, df_fact, df_ventas, ultima_act = load_data()
+    df_medicos, df_fact, df_ventas = load_data()
     mexico_geojson = get_geojson()
 except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
@@ -501,12 +445,6 @@ if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar 
     st.cache_data.clear()
     st.rerun()
 
-st.sidebar.markdown(f"""
-<div style="text-align: center; color: #87A98A; font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;">
- Última actualización:<br><b>{ultima_act}</b>
-</div>
-""", unsafe_allow_html=True)
-
 # ==========================================
 # 4. MÓDULO 1: DESEMPEÑO MÉDICO
 # ==========================================
@@ -516,7 +454,7 @@ if modulo_seleccionado == "Desempeño Médico":
 
     if not st.session_state["acceso_modulo_1"]:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        _, col_login, _ = st.columns([1, 1, 1])
+        col_vacia1, col_login, col_vacia2 = st.columns([1, 1, 1])
 
         with col_login:
             st.markdown("""
@@ -529,8 +467,7 @@ if modulo_seleccionado == "Desempeño Médico":
             pwd = st.text_input("Ingrese su contraseña de acceso:", type="password")
 
             if st.button("Desbloquear Dashboard", use_container_width=True):
-                expected_pwd = st.secrets.get("modulo1", {}).get("password", "")
-                if pwd and pwd == expected_pwd:
+                if pwd == "South2026":
                     st.session_state["acceso_modulo_1"] = True
                     st.rerun()
                 elif pwd != "":
@@ -727,12 +664,12 @@ if modulo_seleccionado == "Desempeño Médico":
 
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
-            st.markdown("""
+            st.markdown(f"""
 <div class="panel-card">
     <p class="section-kicker">Representación de la tabla actual</p>
-    <p style="margin-top: 8px; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">{porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global</span></p>
+    <p style="margin-top: 8px; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">{porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span></p>
 </div>
-""".format(porcentaje_pruebas=porcentaje_pruebas), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
             df_ranking = []
             ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
@@ -865,13 +802,14 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         def get_month_from_row(row):
             for fc in fecha_cols:
                 val = normalize_status_value(row.get(fc, ""))
-                if not val:
-                    continue
-                dt = safe_parse_date(val)
-                if pd.notna(dt):
-                    return MONTHS_ES[dt.month - 1]
+                if val:
+                    if " " in val:
+                        val = val.split()[0]
+                    dt = pd.to_datetime(val, dayfirst=True, errors="coerce")
+                    if pd.notna(dt):
+                        return MONTHS_ES[dt.month - 1]
             return "Sin fecha"
-
+            
         df_ventas_reales["MES_REGISTRO"] = df_ventas_reales.apply(get_month_from_row, axis=1)
 
         def get_current_status(row):
@@ -886,18 +824,19 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Búsqueda y Filtros Operativos")
         col_f1, col_f2, col_f3 = st.columns(3)
-
+        
+        # --- REORGANIZACIÓN DE FILTROS ---
         with col_f1:
             meses_presentes = df_ventas_reales["MES_REGISTRO"].unique().tolist()
             lista_meses = ["Todos"] + [m for m in MONTHS_ES if m in meses_presentes]
             if "Sin fecha" in meses_presentes:
                 lista_meses.append("Sin fecha")
             filtro_mes = st.selectbox("Filtrar por Mes:", lista_meses)
-
+            
         with col_f2:
             lista_vend = ["Todos"] + safe_unique_values(df_ventas_reales.get("VENDEDOR", pd.Series([], dtype=str)))
             filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
-
+            
         with col_f3:
             filtro_estado = st.selectbox(
                 "Filtrar por Etapa del Proceso:",
@@ -962,10 +901,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         for col in [c for c in columnas_tabla if c in df_tabla.columns]:
             df_tabla[col] = df_tabla[col].map(lambda x: clean_string(x) if not pd.isna(x) else "")
 
-        if "CATEGORIA_ESTADO" in df_tabla.columns:
-            df_tabla["CATEGORIA_ESTADO"] = df_tabla["CATEGORIA_ESTADO"].replace({"": "Sin información"})
-        if "ESTADO_ACTUAL" in df_tabla.columns:
-            df_tabla["ESTADO_ACTUAL"] = df_tabla["ESTADO_ACTUAL"].replace({"": "Sin información"})
+        df_tabla["CATEGORIA_ESTADO"] = df_tabla["CATEGORIA_ESTADO"].replace({"": "Sin información"})
+        df_tabla["ESTADO_ACTUAL"] = df_tabla["ESTADO_ACTUAL"].replace({"": "Sin información"})
         df_tabla["__orden_estado__"] = df_tabla["CATEGORIA_ESTADO"].map(ESTADO_ORDER).fillna(999)
         df_tabla = df_tabla.sort_values(["__orden_estado__", "FOLIO"], ascending=[True, True]).drop(columns="__orden_estado__").reset_index(drop=True)
 
@@ -980,7 +917,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "MEDICO": st.column_config.TextColumn("Médico", width="medium"),
                 "PRUEBA": st.column_config.TextColumn("Prueba", width="medium"),
                 "VENDEDOR": st.column_config.TextColumn("Representante", width="medium"),
-                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"]),
+                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
             },
         )
@@ -1003,9 +940,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo"]
+                etapas_labels = etapas
 
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
-
+                
                 is_cancelled = False
                 idx_actual = 0
                 if cat_actual == "Cancelada":
@@ -1023,13 +961,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     idx_actual = etapas.index(cat_actual)
 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100 if len(etapas) > 1 else 0
-
+                
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
 <div style="position: absolute; top: 17px; left: 8%; width: 84%; height: 4px; background-color: #333333; z-index: 0;"></div>
 <div style="position: absolute; top: 17px; left: 8%; width: {progress_percentage * 0.84}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
 """
-                for i, label in enumerate(etapas):
+                for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
                         icon, color, text_color, sub_text = "✔", "#5C95A6", "#FFFFFF", "Completado"
                     elif i == idx_actual:
@@ -1056,7 +994,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     f_val = normalize_status_value(datos_paciente.get(f_col, ""))
                     s_val = normalize_status_value(datos_paciente.get(s_col, ""))
                     if s_val:
-                        dt = safe_parse_date(f_val)
+                        if " " in f_val:
+                            f_val = f_val.split()[0]
+                        dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
                         if pd.notna(dt):
                             fechas_validas_list.append(dt)
 
@@ -1110,11 +1050,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 fecha_val = normalize_status_value(datos_paciente.get(f_col, ""))
                 status_val = normalize_status_value(datos_paciente.get(s_col, ""))
                 if status_val:
-                    dt = safe_parse_date(fecha_val)
-                    if pd.notna(dt):
-                        fecha_limpia = dt.strftime("%d/%m/%Y")
-                    else:
-                        fecha_limpia = ""
+                    fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
                     historial.append({
                         "Fecha": fecha_limpia,
                         "Estado": status_val,
