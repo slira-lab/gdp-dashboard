@@ -450,7 +450,7 @@ if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar 
 # --- SELLO DE ÚLTIMA ACTUALIZACIÓN ---
 st.sidebar.markdown(f"""
 <div style="text-align: center; color: #87A98A; font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;">
-    ⏳ Última actualización:<br><b>{ultima_act}</b>
+ Última actualización:<br><b>{ultima_act}</b>
 </div>
 """, unsafe_allow_html=True)
 
