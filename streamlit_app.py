@@ -6,6 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 import requests
+from datetime import datetime, timedelta
 
 # ==========================================
 # 0. CONSTANTES Y UTILIDADES
@@ -16,7 +17,6 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
-# --- ACTUALIZACIÓN DE ETAPAS (INCLUYE ORDEN DE COMPRA) ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
@@ -400,7 +400,9 @@ def load_data():
         except Exception:
             df_ventas = pd.DataFrame()
 
-    return df_medicos, df_fact, df_ventas
+    # Se guarda el timestamp de la descarga actual (ajustado a la hora central de México, UTC-6)
+    ultima_act = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y a las %I:%M %p")
+    return df_medicos, df_fact, df_ventas, ultima_act
 
 
 @st.cache_data(ttl=3600)
@@ -415,7 +417,7 @@ def get_geojson():
 
 
 try:
-    df_medicos, df_fact, df_ventas = load_data()
+    df_medicos, df_fact, df_ventas, ultima_act = load_data()
     mexico_geojson = get_geojson()
 except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
@@ -444,6 +446,13 @@ st.sidebar.markdown("---")
 if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar la descarga de datos nuevos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
+
+# --- SELLO DE ÚLTIMA ACTUALIZACIÓN ---
+st.sidebar.markdown(f"""
+<div style="text-align: center; color: #87A98A; font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;">
+    ⏳ Última actualización:<br><b>{ultima_act}</b>
+</div>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 4. MÓDULO 1: DESEMPEÑO MÉDICO
@@ -825,7 +834,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         st.subheader("Búsqueda y Filtros Operativos")
         col_f1, col_f2, col_f3 = st.columns(3)
         
-        # --- REORGANIZACIÓN DE FILTROS ---
         with col_f1:
             meses_presentes = df_ventas_reales["MES_REGISTRO"].unique().tolist()
             lista_meses = ["Todos"] + [m for m in MONTHS_ES if m in meses_presentes]
