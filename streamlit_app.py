@@ -56,20 +56,20 @@ def safe_unique_values(series):
 def build_month_columns(prefix):
     return [f"{prefix} {month}" for month in MONTHS_ES]
 
-# --- ACTUALIZACIÓN DE MAPEO CON LISTA EXACTA DEL EXCEL ---
+
 def get_status_category(estado):
     normalized = str(estado or "").upper()
     if any(x in normalized for x in ["PROSPECTO", "SOLICITUD DE MUESTRAS", "SOLICITUD DE RECOLECCION", "SOLICITUD", "PENDIENTE"]):
         return "Solicitud Registrada"
     if any(x in normalized for x in ["RECOLECCION DE MUESTRAS", "CORTES", "ENTREGA DE KIT", "RECOLECCION", "TOMA"]):
         return "Toma / Recolección"
-    if any(x in normalized for x in ["ENVIO A LAB", "SE ENVIO GUIA", "PRUEBA ENVIADA", "ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
+    if any(x in normalized for x in ["ENVIO A LAB", "SE ENVIO GUIA", "ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
         return "Envío a Lab"
     if any(x in normalized for x in ["ORDEN DE COMPRA", "ORDEN", "COMPRA", "OC", "O.C."]):
         return "Orden de Compra"
     if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION", "LAB"]):
         return "En Análisis (Lab)"
-    if any(x in normalized for x in ["PRUEBA LIBERADA", "LIBERADA", "LIBERADO", "RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
+    if any(x in normalized for x in ["PRUEBA LIBERADA", "PRUEBA ENVIADA", "LIBERADA", "LIBERADO", "RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
         return "Resultado Listo"
     if "CANCELADA" in normalized:
         return "Cancelada"
@@ -895,7 +895,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
-        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -977,17 +976,23 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 
                 is_cancelled = False
                 idx_actual = 0
+                
+                # --- SEGURO ANTI-INCONSISTENCIAS DE DATOS ---
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
                     is_cancelled = True
-                    ultimo_valido = "Solicitud Registrada"
-                    for sc in reversed(status_cols):
+                    max_idx = 0
+                    # Busca el estatus más avanzado antes de la cancelación
+                    for sc in status_cols:
                         val = normalize_status_value(datos_paciente.get(sc, ""))
-                        if val and "CANCELADA" not in val.upper():
-                            ultimo_valido = get_status_category(val)
-                            break
-                    if ultimo_valido in etapas:
-                        idx_actual = etapas.index(ultimo_valido)
+                        if val:
+                            cat = get_status_category(val)
+                            if cat in etapas:
+                                cat_idx = etapas.index(cat)
+                                # Límite: Nunca puede cancelarse algo que ya estaba "Resultado Listo"
+                                if cat_idx < len(etapas) - 1:
+                                    max_idx = max(max_idx, cat_idx)
+                    idx_actual = max_idx
                 elif cat_actual in etapas:
                     idx_actual = etapas.index(cat_actual)
 
@@ -1004,6 +1009,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     elif i == idx_actual:
                         if is_cancelled:
                             icon, color, text_color, sub_text = "✖", "#FF4B4B", "#FF4B4B", "Cancelado aquí"
+                        elif i == len(etapas_labels) - 1:
+                            # --- SEGURO PALOMITA VERDE FINAL ---
+                            icon, color, text_color, sub_text = "✔", "#2EC4B6", "#FFFFFF", "Completado"
                         else:
                             icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
                     else:
@@ -1082,15 +1090,22 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 status_val = normalize_status_value(datos_paciente.get(s_col, ""))
                 if status_val:
                     fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
+                    
+                    # Intentamos convertir la fecha para poder ordenarla cronológicamente
+                    dt_ord = pd.to_datetime(fecha_limpia, dayfirst=True, errors="coerce")
+                    
                     historial.append({
                         "Fecha": fecha_limpia,
                         "Estado": status_val,
                         "Descripción": f"Prueba actualizada a estatus: {status_val}",
                         "Nota": "-",
+                        "_dt": dt_ord if pd.notna(dt_ord) else pd.Timestamp.min
                     })
 
             if historial:
                 df_historial = pd.DataFrame(historial)
+                # --- SEGURO CRONOLÓGICO: Ordenar la tabla por fecha real ---
+                df_historial = df_historial.sort_values(by="_dt").drop(columns=["_dt"])
                 st.dataframe(df_historial, use_container_width=True, hide_index=True)
             else:
                 st.info("No hay historial registrado en la bitácora para esta prueba.")
