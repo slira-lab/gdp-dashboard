@@ -872,6 +872,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
+        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -902,7 +903,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.markdown("<h4 style='color: #B4B4B4; font-size: 1.1rem;'>Tabla de Trabajo Operativo</h4>", unsafe_allow_html=True)
         
-        # --- CÁLCULO DE TAT INDIVIDUAL PARA LA TABLA GENERAL ---
         def calc_tat_individual(row):
             fechas_validas = []
             for f_col, s_col in zip(fecha_cols, status_cols):
@@ -919,14 +919,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 if row.get("CATEGORIA_ESTADO") == "Resultado Listo":
                     return (s_fechas.max() - s_fechas.min()).days
                 elif row.get("CATEGORIA_ESTADO") == "Cancelada":
-                    return -1 # Para poder ocultarlo o filtrarlo fácilmente
+                    return -1
                 else:
                     return max(0, (pd.Timestamp.today().normalize() - s_fechas.min().normalize()).days)
             return 0
 
         df_filtrado["Días (TAT)"] = df_filtrado.apply(calc_tat_individual, axis=1)
         
-        # --- AGREGADA COLUMNA DE TAT ---
         columnas_tabla = ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL", "Días (TAT)"]
         df_tabla = df_filtrado.reindex(columns=[c for c in columnas_tabla if c in df_filtrado.columns]).copy()
 
@@ -954,15 +953,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
                 "Días (TAT)": st.column_config.NumberColumn("Días (TAT)", help="Días transcurridos. Si dice -1 significa cancelado.", format="%d"),
             },
-        )
-        
-        # --- BOTÓN DE DESCARGA CSV ---
-        csv = df_tabla.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Descargar Vista Actual (Excel/CSV)",
-            data=csv,
-            file_name='reporte_operativo_sg.csv',
-            mime='text/csv',
         )
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -999,15 +989,12 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             is_anomalia = False
             
             if not df_historial.empty:
-                # 1. Seguro contra fechas vacías (filtramos NaT)
                 df_validas = df_historial[df_historial["_dt"].notna()].copy()
                 
-                # 2. Seguro contra fechas futuras
                 hoy = pd.Timestamp.today().normalize()
                 if (df_validas["_dt"] > hoy).any():
                     is_anomalia = True
                 
-                # 3. Seguro contra orden ilógico
                 if not is_anomalia and not df_validas.empty:
                     df_validas = df_validas.sort_values(by="_dt")
                     max_orden_visto = -1
