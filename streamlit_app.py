@@ -56,7 +56,7 @@ def safe_unique_values(series):
 def build_month_columns(prefix):
     return [f"{prefix} {month}" for month in MONTHS_ES]
 
-# --- MAPEO EXACTO DE PALABRAS CLAVE SOLICITADO ---
+
 def get_status_category(estado):
     normalized = str(estado or "").upper()
     if any(x in normalized for x in ["PROSPECTO", "SOLICITUD DE MUESTRAS", "SOLICITUD DE RECOLECCION", "SOLICITUD", "PENDIENTE"]):
@@ -819,7 +819,15 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas_reales["MES_REGISTRO"] = df_ventas_reales.apply(get_month_from_row, axis=1)
 
+        # --- LÓGICA DE PRIORIDAD ABSOLUTA DE CANCELACIÓN ---
         def get_current_status(row):
+            # 1. Prioridad absoluta: Si hay alguna cancelación en todo el renglón, la prueba está cancelada.
+            for sc in status_cols:
+                val = normalize_status_value(row.get(sc, ""))
+                if "CANCELADA" in val.upper() or "CANCELADO" in val.upper():
+                    return val
+            
+            # 2. Si no hay cancelación, busca el último estatus cronológico válido
             for sc in reversed(status_cols):
                 val = normalize_status_value(row.get(sc, ""))
                 if val:
@@ -895,6 +903,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
+        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -961,7 +970,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         if paciente_seleccionado != "Seleccione un paciente...":
             datos_paciente = df_ventas_reales[df_ventas_reales["PACIENTE"] == paciente_seleccionado].iloc[-1]
 
-            # --- SISTEMA DE AUDITORÍA: CONSTRUCCIÓN Y EVALUACIÓN DEL HISTORIAL ---
             historial = []
             for f_col, s_col in zip(fecha_cols, status_cols):
                 fecha_val = normalize_status_value(datos_paciente.get(f_col, ""))
@@ -986,7 +994,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             is_anomalia = False
             
             if not df_historial.empty:
-                # Ordenar cronológicamente para detectar saltos hacia atrás
                 df_historial = df_historial.sort_values(by="_dt")
                 max_orden_visto = -1
                 
@@ -995,7 +1002,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     orden = row["_orden"]
                     if cat in ["Cancelada", "Sin información"]:
                         continue
-                    # Si el orden actual cronológico es menor al máximo que ya habíamos alcanzado, hay un error
                     if orden < max_orden_visto:
                         is_anomalia = True
                         break
@@ -1005,7 +1011,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
 
-            # --- ALERTA VISUAL DE CASO ESPECIAL ---
             if is_anomalia:
                 st.markdown("""
                 <div style="background-color: rgba(255, 193, 7, 0.15); border-left: 4px solid #FFC107; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
@@ -1027,12 +1032,12 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 is_cancelled = False
                 idx_actual = 0
                 if cat_actual == "Cancelada":
-                    st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
+                    st.error("⚠️ Esta prueba fue marcada como CANCELADA (Prioridad Absoluta).")
                     is_cancelled = True
                     max_idx = 0
                     for sc in status_cols:
                         val = normalize_status_value(datos_paciente.get(sc, ""))
-                        if val:
+                        if val and "CANCELADA" not in val.upper():
                             cat = get_status_category(val)
                             if cat in etapas:
                                 cat_idx = etapas.index(cat)
@@ -1044,7 +1049,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100 if len(etapas) > 1 else 0
                 
-                # --- COLOR DINÁMICO DEL STEPPER (AMARILLO SI HAY ANOMALÍA) ---
                 color_principal = "#FFC107" if is_anomalia else "#5C95A6"
                 
                 html_stepper = f"""
@@ -1129,7 +1133,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
 
             if not df_historial.empty:
-                # Se quitan las columnas ocultas de cálculo antes de mostrar la tabla
                 df_mostrar = df_historial.drop(columns=["_dt", "_orden", "_cat"])
                 st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
             else:
