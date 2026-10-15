@@ -786,7 +786,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     if " " in val:
                         val = val.split()[0]
                     dt = pd.to_datetime(val, dayfirst=True, errors="coerce")
-                    if pd.notna(dt):
+                    if pd.notna(dt) and 2000 < dt.year < 2050: # Seguro contra años atípicos
                         return MONTHS_ES[dt.month - 1]
             return "Sin fecha"
             
@@ -852,7 +852,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     if " " in f_val:
                         f_val = f_val.split()[0]
                     dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
-                    if pd.notna(dt):
+                    if pd.notna(dt) and 2000 < dt.year < 2050:
                         fechas_validas.append(dt)
             if fechas_validas:
                 s_fechas = pd.Series(fechas_validas)
@@ -872,7 +872,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
-        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -912,7 +911,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         if " " in f_val:
                             f_val = f_val.split()[0]
                         dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
-                        if pd.notna(dt):
+                        if pd.notna(dt) and 2000 < dt.year < 2050: # Seguro de año
                             fechas_validas.append(dt)
             if fechas_validas:
                 s_fechas = pd.Series(fechas_validas)
@@ -972,6 +971,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 if status_val:
                     fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
                     dt_ord = pd.to_datetime(fecha_limpia, dayfirst=True, errors="coerce")
+                    
+                    # Filtro anti fechas vacías/absurdas
+                    is_valid_date = pd.notna(dt_ord) and 2000 < dt_ord.year < 2050
+                    
                     cat = get_status_category(status_val)
                     orden = ESTADO_ORDER.get(cat, 99)
                     
@@ -980,7 +983,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         "Estado": status_val,
                         "Descripción": f"Prueba actualizada a estatus: {status_val}",
                         "Nota": "-",
-                        "_dt": dt_ord,
+                        "_dt": dt_ord if is_valid_date else pd.Timestamp.min,
                         "_orden": orden,
                         "_cat": cat
                     })
@@ -989,7 +992,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             is_anomalia = False
             
             if not df_historial.empty:
-                df_validas = df_historial[df_historial["_dt"].notna()].copy()
+                df_validas = df_historial[df_historial["_dt"] > pd.Timestamp.min].copy()
                 
                 hoy = pd.Timestamp.today().normalize()
                 if (df_validas["_dt"] > hoy).any():
@@ -1086,7 +1089,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_details:
                 fechas_validas_list = []
                 if not df_historial.empty:
-                    valid_df = df_historial[df_historial["_dt"].notna()]
+                    valid_df = df_historial[df_historial["_dt"] > pd.Timestamp.min]
                     if not valid_df.empty:
                         fechas_validas_list = valid_df["_dt"].tolist()
 
