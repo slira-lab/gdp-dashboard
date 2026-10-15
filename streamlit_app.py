@@ -298,33 +298,15 @@ def load_data():
 
     if not df_medicos.empty:
         mapa_estados = {
-            "Guadalajara": "Jalisco",
-            "Chihuahua": "Chihuahua",
-            "Cd. Juárez": "Chihuahua",
-            "CDMX Norte": "Ciudad de México",
-            "CDMX Sur": "Ciudad de México",
-            "CDMX Centro": "Ciudad de México",
-            "CDMX": "Ciudad de México",
-            "Monterrey": "Nuevo León",
-            "Nuevo Leon": "Nuevo León",
-            "Mérida, México": "Yucatán",
-            "Mérida": "Yucatán",
-            "Cancun": "Quintana Roo",
-            "Culiacan": "Sinaloa",
-            "Mazatlan": "Sinaloa",
-            "Tampico": "Tamaulipas",
-            "Los Cabos": "Baja California Sur",
-            "Aguascalientes": "Aguascalientes",
-            "Querétaro": "Querétaro",
-            "Veracruz": "Veracruz",
-            "Puebla": "Puebla",
-            "Leon": "Guanajuato",
-            "Tijuana": "Baja California",
-            "Hermosillo": "Sonora",
-            "Oaxaca": "Oaxaca",
-            "Morelia": "Michoacán",
-            "Toluca": "México",
-            "Cuernavaca": "Morelos",
+            "Guadalajara": "Jalisco", "Chihuahua": "Chihuahua", "Cd. Juárez": "Chihuahua",
+            "CDMX Norte": "Ciudad de México", "CDMX Sur": "Ciudad de México", "CDMX Centro": "Ciudad de México",
+            "CDMX": "Ciudad de México", "Monterrey": "Nuevo León", "Nuevo Leon": "Nuevo León",
+            "Mérida, México": "Yucatán", "Mérida": "Yucatán", "Cancun": "Quintana Roo",
+            "Culiacan": "Sinaloa", "Mazatlan": "Sinaloa", "Tampico": "Tamaulipas",
+            "Los Cabos": "Baja California Sur", "Aguascalientes": "Aguascalientes",
+            "Querétaro": "Querétaro", "Veracruz": "Veracruz", "Puebla": "Puebla",
+            "Leon": "Guanajuato", "Tijuana": "Baja California", "Hermosillo": "Sonora",
+            "Oaxaca": "Oaxaca", "Morelia": "Michoacán", "Toluca": "México", "Cuernavaca": "Morelos"
         }
 
         def obtener_estado(territorio):
@@ -335,24 +317,15 @@ def load_data():
             df_medicos["Estado_oficial"] = df_medicos["TERRITORIO"].apply(obtener_estado)
 
             coords = {
-                "Guadalajara": [20.6596, -103.3496],
-                "Chihuahua": [28.6329, -106.0691],
-                "CDMX Norte": [19.4326, -99.1332],
-                "CDMX Sur": [19.3000, -99.1500],
-                "CDMX Centro": [19.4326, -99.1332],
-                "CDMX": [19.4326, -99.1332],
-                "Monterrey": [25.6866, -100.3161],
-                "Mérida, México": [20.9673, -89.6242],
-                "Cancun": [21.1619, -86.8515],
-                "Culiacan": [24.8032, -107.3938],
-                "Tampico": [22.2158, -97.8584],
-                "Los Cabos": [22.8905, -109.9167],
-                "Aguascalientes": [21.8853, -102.2916],
-                "Nuevo Leon": [25.6866, -100.3161],
-                "Querétaro": [20.5881, -100.3899],
-                "Mazatlan": [23.2494, -106.4111],
-                "Veracruz": [19.1738, -96.1342],
-                "Cd. Juárez": [31.7333, -106.4833],
+                "Guadalajara": [20.6596, -103.3496], "Chihuahua": [28.6329, -106.0691],
+                "CDMX Norte": [19.4326, -99.1332], "CDMX Sur": [19.3000, -99.1500],
+                "CDMX Centro": [19.4326, -99.1332], "CDMX": [19.4326, -99.1332],
+                "Monterrey": [25.6866, -100.3161], "Mérida, México": [20.9673, -89.6242],
+                "Cancun": [21.1619, -86.8515], "Culiacan": [24.8032, -107.3938],
+                "Tampico": [22.2158, -97.8584], "Los Cabos": [22.8905, -109.9167],
+                "Aguascalientes": [21.8853, -102.2916], "Nuevo Leon": [25.6866, -100.3161],
+                "Querétaro": [20.5881, -100.3899], "Mazatlan": [23.2494, -106.4111],
+                "Veracruz": [19.1738, -96.1342], "Cd. Juárez": [31.7333, -106.4833]
             }
             default_coord = [19.4326, -99.1332]
             df_medicos["lat"] = df_medicos["TERRITORIO"].map(lambda x: coords.get(str(x).strip(), default_coord)[0])
@@ -819,15 +792,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             
         df_ventas_reales["MES_REGISTRO"] = df_ventas_reales.apply(get_month_from_row, axis=1)
 
-        # --- LÓGICA DE PRIORIDAD ABSOLUTA DE CANCELACIÓN ---
         def get_current_status(row):
-            # 1. Prioridad absoluta: Si hay alguna cancelación en todo el renglón, la prueba está cancelada.
             for sc in status_cols:
                 val = normalize_status_value(row.get(sc, ""))
                 if "CANCELADA" in val.upper() or "CANCELADO" in val.upper():
                     return val
-            
-            # 2. Si no hay cancelación, busca el último estatus cronológico válido
             for sc in reversed(status_cols):
                 val = normalize_status_value(row.get(sc, ""))
                 if val:
@@ -903,7 +872,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
-        
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
@@ -933,11 +901,38 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         st.markdown("<hr>", unsafe_allow_html=True)
 
         st.markdown("<h4 style='color: #B4B4B4; font-size: 1.1rem;'>Tabla de Trabajo Operativo</h4>", unsafe_allow_html=True)
-        columnas_tabla = ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL"]
+        
+        # --- CÁLCULO DE TAT INDIVIDUAL PARA LA TABLA GENERAL ---
+        def calc_tat_individual(row):
+            fechas_validas = []
+            for f_col, s_col in zip(fecha_cols, status_cols):
+                if normalize_status_value(row.get(s_col, "")):
+                    f_val = normalize_status_value(row.get(f_col, ""))
+                    if f_val:
+                        if " " in f_val:
+                            f_val = f_val.split()[0]
+                        dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
+                        if pd.notna(dt):
+                            fechas_validas.append(dt)
+            if fechas_validas:
+                s_fechas = pd.Series(fechas_validas)
+                if row.get("CATEGORIA_ESTADO") == "Resultado Listo":
+                    return (s_fechas.max() - s_fechas.min()).days
+                elif row.get("CATEGORIA_ESTADO") == "Cancelada":
+                    return -1 # Para poder ocultarlo o filtrarlo fácilmente
+                else:
+                    return max(0, (pd.Timestamp.today().normalize() - s_fechas.min().normalize()).days)
+            return 0
+
+        df_filtrado["Días (TAT)"] = df_filtrado.apply(calc_tat_individual, axis=1)
+        
+        # --- AGREGADA COLUMNA DE TAT ---
+        columnas_tabla = ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL", "Días (TAT)"]
         df_tabla = df_filtrado.reindex(columns=[c for c in columnas_tabla if c in df_filtrado.columns]).copy()
 
-        for col in [c for c in columnas_tabla if c in df_tabla.columns]:
-            df_tabla[col] = df_tabla[col].map(lambda x: clean_string(x) if not pd.isna(x) else "")
+        for col in ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL"]:
+            if col in df_tabla.columns:
+                df_tabla[col] = df_tabla[col].map(lambda x: clean_string(x) if not pd.isna(x) else "")
 
         df_tabla["CATEGORIA_ESTADO"] = df_tabla["CATEGORIA_ESTADO"].replace({"": "Sin información"})
         df_tabla["ESTADO_ACTUAL"] = df_tabla["ESTADO_ACTUAL"].replace({"": "Sin información"})
@@ -948,7 +943,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             df_tabla,
             hide_index=True,
             use_container_width=True,
-            height=420,
+            height=350,
             column_config={
                 "FOLIO": st.column_config.TextColumn("Folio", width="small"),
                 "PACIENTE": st.column_config.TextColumn("Paciente", width="medium"),
@@ -957,7 +952,17 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "VENDEDOR": st.column_config.TextColumn("Representante", width="medium"),
                 "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
+                "Días (TAT)": st.column_config.NumberColumn("Días (TAT)", help="Días transcurridos. Si dice -1 significa cancelado.", format="%d"),
             },
+        )
+        
+        # --- BOTÓN DE DESCARGA CSV ---
+        csv = df_tabla.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar Vista Actual (Excel/CSV)",
+            data=csv,
+            file_name='reporte_operativo_sg.csv',
+            mime='text/csv',
         )
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -985,7 +990,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         "Estado": status_val,
                         "Descripción": f"Prueba actualizada a estatus: {status_val}",
                         "Nota": "-",
-                        "_dt": dt_ord if pd.notna(dt_ord) else pd.Timestamp.min,
+                        "_dt": dt_ord,
                         "_orden": orden,
                         "_cat": cat
                     })
@@ -994,19 +999,29 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             is_anomalia = False
             
             if not df_historial.empty:
-                df_historial = df_historial.sort_values(by="_dt")
-                max_orden_visto = -1
+                # 1. Seguro contra fechas vacías (filtramos NaT)
+                df_validas = df_historial[df_historial["_dt"].notna()].copy()
                 
-                for _, row in df_historial.iterrows():
-                    cat = row["_cat"]
-                    orden = row["_orden"]
-                    if cat in ["Cancelada", "Sin información"]:
-                        continue
-                    if orden < max_orden_visto:
-                        is_anomalia = True
-                        break
-                    if orden > max_orden_visto:
-                        max_orden_visto = orden
+                # 2. Seguro contra fechas futuras
+                hoy = pd.Timestamp.today().normalize()
+                if (df_validas["_dt"] > hoy).any():
+                    is_anomalia = True
+                
+                # 3. Seguro contra orden ilógico
+                if not is_anomalia and not df_validas.empty:
+                    df_validas = df_validas.sort_values(by="_dt")
+                    max_orden_visto = -1
+                    
+                    for _, row in df_validas.iterrows():
+                        cat = row["_cat"]
+                        orden = row["_orden"]
+                        if cat in ["Cancelada", "Sin información"]:
+                            continue
+                        if orden < max_orden_visto:
+                            is_anomalia = True
+                            break
+                        if orden > max_orden_visto:
+                            max_orden_visto = orden
 
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
@@ -1014,8 +1029,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             if is_anomalia:
                 st.markdown("""
                 <div style="background-color: rgba(255, 193, 7, 0.15); border-left: 4px solid #FFC107; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                    <span style="color: #FFC107; font-weight: bold; font-size: 1.1em;">⚠️ CASO ESPECIAL (Inconsistencia en Bitácora)</span><br>
-                    <span style="color: #E0E0E0;">El orden en el que se capturaron las fechas en el Excel no sigue la secuencia lógica del proceso (un paso avanzado tiene una fecha anterior a un paso inicial). <b>POR FAVOR REVISAR CON TU SUPERIOR.</b></span>
+                    <span style="color: #FFC107; font-weight: bold; font-size: 1.1em;">⚠️ CASO ESPECIAL (Inconsistencia en Fechas/Bitácora)</span><br>
+                    <span style="color: #E0E0E0;">El sistema detectó una fecha capturada en el futuro, o el orden de las fechas no sigue la secuencia lógica del proceso. <b>POR FAVOR REVISAR EL ARCHIVO CON TU SUPERIOR.</b></span>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1084,8 +1099,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_details:
                 fechas_validas_list = []
                 if not df_historial.empty:
-                    valid_df = df_historial[df_historial["_dt"] > pd.Timestamp.min]
-                    fechas_validas_list = valid_df["_dt"].tolist()
+                    valid_df = df_historial[df_historial["_dt"].notna()]
+                    if not valid_df.empty:
+                        fechas_validas_list = valid_df["_dt"].tolist()
 
                 if fechas_validas_list:
                     fechas_validas_series = pd.Series(fechas_validas_list)
