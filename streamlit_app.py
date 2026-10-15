@@ -56,20 +56,20 @@ def safe_unique_values(series):
 def build_month_columns(prefix):
     return [f"{prefix} {month}" for month in MONTHS_ES]
 
-
+# --- MAPEO EXACTO DE PALABRAS CLAVE SOLICITADO ---
 def get_status_category(estado):
     normalized = str(estado or "").upper()
     if any(x in normalized for x in ["PROSPECTO", "SOLICITUD DE MUESTRAS", "SOLICITUD DE RECOLECCION", "SOLICITUD", "PENDIENTE"]):
         return "Solicitud Registrada"
     if any(x in normalized for x in ["RECOLECCION DE MUESTRAS", "CORTES", "ENTREGA DE KIT", "RECOLECCION", "TOMA"]):
         return "Toma / Recolección"
-    if any(x in normalized for x in ["ENVIO A LAB", "SE ENVIO GUIA", "ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
+    if any(x in normalized for x in ["ENVIO A LAB", "SE ENVIO GUIA", "PRUEBA ENVIADA", "ENVIO", "ENVÍO", "TRANSITO", "COURIER"]):
         return "Envío a Lab"
     if any(x in normalized for x in ["ORDEN DE COMPRA", "ORDEN", "COMPRA", "OC", "O.C."]):
         return "Orden de Compra"
     if any(x in normalized for x in ["LABORATORIO", "ANALISIS", "RECEPCION", "LAB"]):
         return "En Análisis (Lab)"
-    if any(x in normalized for x in ["PRUEBA LIBERADA", "PRUEBA ENVIADA", "LIBERADA", "LIBERADO", "RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
+    if any(x in normalized for x in ["PRUEBA LIBERADA", "LIBERADA", "LIBERADO", "RESULTADO", "LISTO", "COMPLETADO", "FINALIZADO"]):
         return "Resultado Listo"
     if "CANCELADA" in normalized:
         return "Cancelada"
@@ -961,8 +961,58 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         if paciente_seleccionado != "Seleccione un paciente...":
             datos_paciente = df_ventas_reales[df_ventas_reales["PACIENTE"] == paciente_seleccionado].iloc[-1]
 
+            # --- SISTEMA DE AUDITORÍA: CONSTRUCCIÓN Y EVALUACIÓN DEL HISTORIAL ---
+            historial = []
+            for f_col, s_col in zip(fecha_cols, status_cols):
+                fecha_val = normalize_status_value(datos_paciente.get(f_col, ""))
+                status_val = normalize_status_value(datos_paciente.get(s_col, ""))
+                if status_val:
+                    fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
+                    dt_ord = pd.to_datetime(fecha_limpia, dayfirst=True, errors="coerce")
+                    cat = get_status_category(status_val)
+                    orden = ESTADO_ORDER.get(cat, 99)
+                    
+                    historial.append({
+                        "Fecha": fecha_limpia,
+                        "Estado": status_val,
+                        "Descripción": f"Prueba actualizada a estatus: {status_val}",
+                        "Nota": "-",
+                        "_dt": dt_ord if pd.notna(dt_ord) else pd.Timestamp.min,
+                        "_orden": orden,
+                        "_cat": cat
+                    })
+
+            df_historial = pd.DataFrame(historial)
+            is_anomalia = False
+            
+            if not df_historial.empty:
+                # Ordenar cronológicamente para detectar saltos hacia atrás
+                df_historial = df_historial.sort_values(by="_dt")
+                max_orden_visto = -1
+                
+                for _, row in df_historial.iterrows():
+                    cat = row["_cat"]
+                    orden = row["_orden"]
+                    if cat in ["Cancelada", "Sin información"]:
+                        continue
+                    # Si el orden actual cronológico es menor al máximo que ya habíamos alcanzado, hay un error
+                    if orden < max_orden_visto:
+                        is_anomalia = True
+                        break
+                    if orden > max_orden_visto:
+                        max_orden_visto = orden
+
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
+
+            # --- ALERTA VISUAL DE CASO ESPECIAL ---
+            if is_anomalia:
+                st.markdown("""
+                <div style="background-color: rgba(255, 193, 7, 0.15); border-left: 4px solid #FFC107; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <span style="color: #FFC107; font-weight: bold; font-size: 1.1em;">⚠️ CASO ESPECIAL (Inconsistencia en Bitácora)</span><br>
+                    <span style="color: #E0E0E0;">El orden en el que se capturaron las fechas en el Excel no sigue la secuencia lógica del proceso (un paso avanzado tiene una fecha anterior a un paso inicial). <b>POR FAVOR REVISAR CON TU SUPERIOR.</b></span>
+                </div>
+                """, unsafe_allow_html=True)
 
             col_track, col_details = st.columns([2, 1], gap="large")
 
@@ -976,20 +1026,16 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 
                 is_cancelled = False
                 idx_actual = 0
-                
-                # --- SEGURO ANTI-INCONSISTENCIAS DE DATOS ---
                 if cat_actual == "Cancelada":
                     st.error("⚠️ Esta prueba fue marcada como CANCELADA.")
                     is_cancelled = True
                     max_idx = 0
-                    # Busca el estatus más avanzado antes de la cancelación
                     for sc in status_cols:
                         val = normalize_status_value(datos_paciente.get(sc, ""))
                         if val:
                             cat = get_status_category(val)
                             if cat in etapas:
                                 cat_idx = etapas.index(cat)
-                                # Límite: Nunca puede cancelarse algo que ya estaba "Resultado Listo"
                                 if cat_idx < len(etapas) - 1:
                                     max_idx = max(max_idx, cat_idx)
                     idx_actual = max_idx
@@ -998,19 +1044,23 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100 if len(etapas) > 1 else 0
                 
+                # --- COLOR DINÁMICO DEL STEPPER (AMARILLO SI HAY ANOMALÍA) ---
+                color_principal = "#FFC107" if is_anomalia else "#5C95A6"
+                
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
 <div style="position: absolute; top: 17px; left: 8%; width: 84%; height: 4px; background-color: #333333; z-index: 0;"></div>
-<div style="position: absolute; top: 17px; left: 8%; width: {progress_percentage * 0.84}%; height: 4px; background-color: #5C95A6; z-index: 1; transition: width 0.5s ease;"></div>
+<div style="position: absolute; top: 17px; left: 8%; width: {progress_percentage * 0.84}%; height: 4px; background-color: {color_principal}; z-index: 1; transition: width 0.5s ease;"></div>
 """
                 for i, label in enumerate(etapas_labels):
                     if i < idx_actual:
-                        icon, color, text_color, sub_text = "✔", "#5C95A6", "#FFFFFF", "Completado"
+                        icon, color, text_color, sub_text = "✔", color_principal, "#FFFFFF", "Completado"
                     elif i == idx_actual:
                         if is_cancelled:
                             icon, color, text_color, sub_text = "✖", "#FF4B4B", "#FF4B4B", "Cancelado aquí"
+                        elif is_anomalia:
+                            icon, color, text_color, sub_text = "⚠️", "#FFC107", "#FFC107", "Revisión Req."
                         elif i == len(etapas_labels) - 1:
-                            # --- SEGURO PALOMITA VERDE FINAL ---
                             icon, color, text_color, sub_text = "✔", "#2EC4B6", "#FFFFFF", "Completado"
                         else:
                             icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
@@ -1029,15 +1079,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 
             with col_details:
                 fechas_validas_list = []
-                for f_col, s_col in zip(fecha_cols, status_cols):
-                    f_val = normalize_status_value(datos_paciente.get(f_col, ""))
-                    s_val = normalize_status_value(datos_paciente.get(s_col, ""))
-                    if s_val:
-                        if " " in f_val:
-                            f_val = f_val.split()[0]
-                        dt = pd.to_datetime(f_val, dayfirst=True, errors="coerce")
-                        if pd.notna(dt):
-                            fechas_validas_list.append(dt)
+                if not df_historial.empty:
+                    valid_df = df_historial[df_historial["_dt"] > pd.Timestamp.min]
+                    fechas_validas_list = valid_df["_dt"].tolist()
 
                 if fechas_validas_list:
                     fechas_validas_series = pd.Series(fechas_validas_list)
@@ -1084,28 +1128,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
 
-            historial = []
-            for f_col, s_col in zip(fecha_cols, status_cols):
-                fecha_val = normalize_status_value(datos_paciente.get(f_col, ""))
-                status_val = normalize_status_value(datos_paciente.get(s_col, ""))
-                if status_val:
-                    fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
-                    
-                    # Intentamos convertir la fecha para poder ordenarla cronológicamente
-                    dt_ord = pd.to_datetime(fecha_limpia, dayfirst=True, errors="coerce")
-                    
-                    historial.append({
-                        "Fecha": fecha_limpia,
-                        "Estado": status_val,
-                        "Descripción": f"Prueba actualizada a estatus: {status_val}",
-                        "Nota": "-",
-                        "_dt": dt_ord if pd.notna(dt_ord) else pd.Timestamp.min
-                    })
-
-            if historial:
-                df_historial = pd.DataFrame(historial)
-                # --- SEGURO CRONOLÓGICO: Ordenar la tabla por fecha real ---
-                df_historial = df_historial.sort_values(by="_dt").drop(columns=["_dt"])
-                st.dataframe(df_historial, use_container_width=True, hide_index=True)
+            if not df_historial.empty:
+                # Se quitan las columnas ocultas de cálculo antes de mostrar la tabla
+                df_mostrar = df_historial.drop(columns=["_dt", "_orden", "_cat"])
+                st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
             else:
                 st.info("No hay historial registrado en la bitácora para esta prueba.")
