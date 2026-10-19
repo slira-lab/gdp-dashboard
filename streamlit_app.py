@@ -17,11 +17,12 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
+# --- AJUSTE DE SECUENCIA LÓGICA MAESTRA ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
-    "Envío a Lab": 2,
-    "Orden de Compra": 3,
+    "Orden de Compra": 2, # Se movió antes del envío
+    "Envío a Lab": 3,     # Se movió después de la Orden
     "En Análisis (Lab)": 4,
     "Resultado Listo": 5,
     "Cancelada": 6,
@@ -544,7 +545,7 @@ if modulo_seleccionado == "Desempeño Médico":
                         max_docs = df_mapa["Doctores"].max() if not df_mapa.empty else 0
                         if max_docs == 0:
                             max_docs = 1
-
+                            
                         fig_map = px.choropleth(
                             df_mapa,
                             geojson=mexico_geojson,
@@ -834,7 +835,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         with col_f3:
             filtro_estado = st.selectbox(
                 "Filtrar por Etapa del Proceso:",
-                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
+                ["Todos", "Solicitud Registrada", "Toma / Recolección", "Orden de Compra", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
             )
 
         df_filtrado = df_ventas_reales.copy()
@@ -886,8 +887,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         colores_dona_map = {
             "Solicitud Registrada": "#5C95A6",
             "Toma / Recolección": "#87A98A",
-            "Envío a Lab": "#FF9F1C",
             "Orden de Compra": "#E2A973",
+            "Envío a Lab": "#FF9F1C",
             "En Análisis (Lab)": "#A3C1CC",
             "Resultado Listo": "#2EC4B6",
             "Cancelada": "#FF4B4B",
@@ -959,7 +960,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "MEDICO": st.column_config.TextColumn("Médico", width="medium"),
                 "PRUEBA": st.column_config.TextColumn("Prueba", width="medium"),
                 "VENDEDOR": st.column_config.TextColumn("Representante", width="medium"),
-                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
+                "CATEGORIA_ESTADO": st.column_config.SelectboxColumn("Etapa", options=["Solicitud Registrada", "Toma / Recolección", "Orden de Compra", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada", "Sin información"], width="medium"),
                 "ESTADO_ACTUAL": st.column_config.TextColumn("Estado actual", width="medium"),
                 "Días (TAT)": st.column_config.NumberColumn("Días (TAT)", help="Días transcurridos. Si dice -1 significa cancelado.", format="%d"),
             },
@@ -1039,7 +1040,8 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
-                etapas = ["Solicitud Registrada", "Toma / Recolección", "Envío a Lab", "Orden de Compra", "En Análisis (Lab)", "Resultado Listo"]
+                # --- ACTUALIZACIÓN DE ETIQUETAS DEL STEPPER ---
+                etapas = ["Solicitud Registrada", "Toma / Recolección", "Orden de Compra", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo"]
                 etapas_labels = etapas
 
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
