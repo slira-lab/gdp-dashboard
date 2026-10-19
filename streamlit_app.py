@@ -17,12 +17,11 @@ MONTHS_ES = [
 ]
 MONTHS_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
-# --- AJUSTE DE SECUENCIA LÓGICA MAESTRA ---
 ESTADO_ORDER = {
     "Solicitud Registrada": 0,
     "Toma / Recolección": 1,
-    "Orden de Compra": 2, # Se movió antes del envío
-    "Envío a Lab": 3,     # Se movió después de la Orden
+    "Orden de Compra": 2,
+    "Envío a Lab": 3,
     "En Análisis (Lab)": 4,
     "Resultado Listo": 5,
     "Cancelada": 6,
@@ -83,6 +82,17 @@ st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sideb
 
 st.markdown("""
 <style>
+    /* Ocultar el menú superior de Streamlit, ícono de GitHub y pie de página */
+    [data-testid="stHeader"] {
+        display: none !important;
+    }
+    #MainMenu {
+        visibility: hidden !important;
+    }
+    footer {
+        visibility: hidden !important;
+    }
+
     :root {
         --bg: #0f1117;
         --panel: #181c24;
@@ -545,7 +555,7 @@ if modulo_seleccionado == "Desempeño Médico":
                         max_docs = df_mapa["Doctores"].max() if not df_mapa.empty else 0
                         if max_docs == 0:
                             max_docs = 1
-                            
+
                         fig_map = px.choropleth(
                             df_mapa,
                             geojson=mexico_geojson,
@@ -1040,7 +1050,6 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
                 
-                # --- ACTUALIZACIÓN DE ETIQUETAS DEL STEPPER ---
                 etapas = ["Solicitud Registrada", "Toma / Recolección", "Orden de Compra", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo"]
                 etapas_labels = etapas
 
