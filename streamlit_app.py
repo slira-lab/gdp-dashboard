@@ -8,6 +8,9 @@ import json
 import requests
 from datetime import datetime, timedelta
 
+# ==========================================
+# 0. CONSTANTES Y UTILIDADES
+# ==========================================
 MONTHS_ES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -24,15 +27,21 @@ ESTADO_ORDER = {
     "Cancelada": 6,
     "Sin información": 7,
 }
+
+
 def clean_string(value):
     if pd.isna(value):
         return ""
     return str(value).strip()
+
+
 def normalize_status_value(value):
     s = clean_string(value)
     if not s or s.upper() in ["NAN", "NONE", "NAT", "NULL"]:
         return ""
     return s
+
+
 def safe_unique_values(series):
     values = []
     if series is None:
@@ -42,8 +51,12 @@ def safe_unique_values(series):
         if v and v.upper() != "NAN":
             values.append(v)
     return sorted(set(values))
+
+
 def build_month_columns(prefix):
     return [f"{prefix} {month}" for month in MONTHS_ES]
+
+
 def get_status_category(estado):
     normalized = str(estado or "").upper()
     if any(x in normalized for x in ["PROSPECTO", "SOLICITUD DE MUESTRAS", "SOLICITUD DE RECOLECCION", "SOLICITUD", "PENDIENTE"]):
@@ -61,19 +74,23 @@ def get_status_category(estado):
     if "CANCELADA" in normalized:
         return "Cancelada"
     return "Solicitud Registrada"
+
+# ==========================================
+# 1. CONFIGURACIÓN Y DISEÑO CORPORATIVO (DARK MODE)
+# ==========================================
 st.set_page_config(page_title="SouthGenetics | BI", layout="wide", initial_sidebar_state="expanded")
+
 st.markdown("""
 <style>
-    /* Ocultar el menú superior de Streamlit, ícono de GitHub y pie de página */
-    [data-testid="stHeader"] {
-        display: none !important;
-    }
-    #MainMenu {
-        visibility: hidden !important;
-    }
-    footer {
-        visibility: hidden !important;
-    }
+    /* Ocultar botones y menús nativos de Streamlit Cloud */
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    .stDeployButton {display: none !important;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
+    .viewerBadge_link__1S137 {display: none !important;}
+
     :root {
         --bg: #0f1117;
         --panel: #181c24;
@@ -87,6 +104,7 @@ st.markdown("""
         --warning: #FF9F1C;
         --danger: #FF4B4B;
     }
+
     .titulo-principal {
         font-size: 2.2rem !important;
         color: #5C95A6 !important;
@@ -95,6 +113,7 @@ st.markdown("""
         margin-bottom: 0px;
         padding-bottom: 10px;
     }
+
     .descripcion-modulo {
         color: #B4B4B4;
         font-size: 1.1rem;
@@ -103,6 +122,7 @@ st.markdown("""
         border-bottom: 1px solid #333333;
         padding-bottom: 15px;
     }
+
     [data-testid="stMetric"] {
         background-color: #262730;
         border-left: 6px solid #5C95A6;
@@ -110,6 +130,7 @@ st.markdown("""
         padding: 18px 20px;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.35);
     }
+
     [data-testid="stMetricValue"] {
         font-size: 1.3rem !important;
         color: #FFFFFF !important;
@@ -117,6 +138,7 @@ st.markdown("""
         line-height: 1.3 !important;
         overflow-wrap: break-word !important;
     }
+
     [data-testid="stMetricValue"] > div,
     [data-testid="stMetricValue"] span,
     [data-testid="stMetricValue"] label {
@@ -124,16 +146,20 @@ st.markdown("""
         overflow: visible !important;
         text-overflow: clip !important;
     }
+
     [data-testid="stMetricLabel"] {
         font-size: 1rem !important;
         color: #B4B4B4 !important;
         font-weight: bold;
     }
+
     h2, h3 {
         color: #5C95A6 !important;
         font-family: 'Arial', sans-serif;
     }
+
     hr { border-color: #333333 !important; }
+
     .brand-banner {
         width: 100%;
         display: flex;
@@ -148,11 +174,13 @@ st.markdown("""
         box-sizing: border-box;
         min-height: 140px;
     }
+
     .brand-left {
         display: flex;
         align-items: baseline;
         white-space: nowrap;
     }
+
     .brand-south,
     .brand-genetics,
     .brand-country {
@@ -160,6 +188,7 @@ st.markdown("""
         white-space: nowrap;
         line-height: 1;
     }
+
     .brand-south {
         color: #C9CED0;
         font-size: clamp(3rem, 6.8vw, 8.3rem);
@@ -167,6 +196,7 @@ st.markdown("""
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
+
     .brand-genetics {
         color: #87B4C2;
         font-size: clamp(3rem, 6.8vw, 8.3rem);
@@ -174,10 +204,12 @@ st.markdown("""
         letter-spacing: -0.08em;
         font-family: 'Arial', sans-serif;
     }
+
     .brand-right {
         display: flex;
         align-items: baseline;
     }
+
     .brand-country {
         color: rgba(135, 180, 194, 0.96);
         font-size: clamp(3rem, 6.8vw, 8.3rem);
@@ -186,6 +218,7 @@ st.markdown("""
         font-weight: 400;
         letter-spacing: -0.04em;
     }
+
     .panel-card {
         background: rgba(38,39,48,0.95);
         border: 1px solid rgba(92,149,166,0.20);
@@ -194,9 +227,11 @@ st.markdown("""
         padding: 16px 18px;
         box-shadow: 0 5px 15px rgba(0,0,0,0.18);
     }
+
     .panel-card p {
         margin: 0;
     }
+
     .section-kicker {
         color: #B4B4B4;
         font-size: 0.82rem;
@@ -204,6 +239,7 @@ st.markdown("""
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
+
     .muted-text {
         color: #B4B4B4;
     }
@@ -218,6 +254,10 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# ==========================================
+# 2. CONEXIÓN A DATOS, MONEDA Y MAPAS
+# ==========================================
 @st.cache_data(ttl=600)
 def load_data():
     cred_dict = json.loads(st.secrets["google_credentials"])
@@ -227,13 +267,16 @@ def load_data():
     ]
     creds = Credentials.from_service_account_info(cred_dict, scopes=scopes)
     client = gspread.authorize(creds)
+
     sheet_url = "https://docs.google.com/spreadsheets/d/1Zr3YUCUXFwZIRRSGIBnnW60dji1pcnda1VHwZ6HXcYQ/edit?usp=sharing"
     doc = client.open_by_url(sheet_url)
+
     def normalize_columns(df):
         if df.empty:
             return df
         df.columns = [str(c).strip() for c in df.columns]
         return df
+
     def parse_numeric_columns(df):
         if df.empty:
             return df
@@ -248,6 +291,8 @@ def load_data():
             elif "CANTIDAD" in str(col).upper():
                 df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         return df
+
+    # --- DATOS MÉDICOS ---
     datos_medicos = doc.worksheet("MEDICOS").get_all_values()
     if datos_medicos:
         idx_med = next((i for i, row in enumerate(datos_medicos) if "NOMBRE" in str(row)), None)
@@ -259,6 +304,7 @@ def load_data():
             df_medicos = pd.DataFrame()
     else:
         df_medicos = pd.DataFrame()
+
     if not df_medicos.empty:
         mapa_estados = {
             "Guadalajara": "Jalisco", "Chihuahua": "Chihuahua", "Cd. Juárez": "Chihuahua",
@@ -271,11 +317,14 @@ def load_data():
             "Leon": "Guanajuato", "Tijuana": "Baja California", "Hermosillo": "Sonora",
             "Oaxaca": "Oaxaca", "Morelia": "Michoacán", "Toluca": "México", "Cuernavaca": "Morelos"
         }
+
         def obtener_estado(territorio):
             t = str(territorio).strip()
             return mapa_estados.get(t, t)
+
         if "TERRITORIO" in df_medicos.columns:
             df_medicos["Estado_oficial"] = df_medicos["TERRITORIO"].apply(obtener_estado)
+
             coords = {
                 "Guadalajara": [20.6596, -103.3496], "Chihuahua": [28.6329, -106.0691],
                 "CDMX Norte": [19.4326, -99.1332], "CDMX Sur": [19.3000, -99.1500],
@@ -290,6 +339,8 @@ def load_data():
             default_coord = [19.4326, -99.1332]
             df_medicos["lat"] = df_medicos["TERRITORIO"].map(lambda x: coords.get(str(x).strip(), default_coord)[0])
             df_medicos["lon"] = df_medicos["TERRITORIO"].map(lambda x: coords.get(str(x).strip(), default_coord)[1])
+
+    # --- DATOS FACTURACIÓN ---
     datos_fact = doc.worksheet("FACTURACION").get_all_values()
     if datos_fact:
         idx_fac = next((i for i, row in enumerate(datos_fact) if "NOMBRE" in str(row)), None)
@@ -301,8 +352,11 @@ def load_data():
             df_fact = pd.DataFrame()
     else:
         df_fact = pd.DataFrame()
+
     if not df_fact.empty:
         df_fact = parse_numeric_columns(df_fact)
+
+    # --- DATOS VENTAS ---
     try:
         datos_ventas = doc.worksheet("VENTAS").get_all_values()
         if datos_ventas:
@@ -327,8 +381,11 @@ def load_data():
             df_ventas.columns = df_ventas.columns.str.upper()
         except Exception:
             df_ventas = pd.DataFrame()
+
     ultima_act = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y a las %I:%M %p")
     return df_medicos, df_fact, df_ventas, ultima_act
+
+
 @st.cache_data(ttl=3600)
 def get_geojson():
     url = "https://raw.githubusercontent.com/angelnmara/geojson/master/mexicoHigh.json"
@@ -338,39 +395,56 @@ def get_geojson():
         return r.json()
     except Exception:
         return None
+
+
 try:
     df_medicos, df_fact, df_ventas, ultima_act = load_data()
     mexico_geojson = get_geojson()
 except Exception as e:
     st.error(f"Error conectando a la base de datos: {e}")
     st.stop()
+
+# ==========================================
+# 3. MENÚ DE NAVEGACIÓN GLOBAL (BARRA LATERAL)
+# ==========================================
 try:
     st.sidebar.image("LOGO SG (1) (2) (1).png", use_container_width=True)
 except Exception:
     st.sidebar.markdown("### SouthGenetics")
+
 st.sidebar.markdown("""
 <div style="color: #A3C1CC; font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5; padding: 0 5px;">
     <strong>Sistema Integral de Inteligencia de Negocios.</strong><br>
     Herramienta centralizada para el monitoreo estratégico de desempeño comercial y la trazabilidad operativa de pruebas genéticas.
 </div>
 """, unsafe_allow_html=True)
+
 st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio("Seleccione un módulo:", ["Desempeño Médico", "Seguimiento de Pruebas"])
+
 st.sidebar.markdown("---")
+
 if st.sidebar.button("Actualizar Datos", use_container_width=True, help="Forzar la descarga de datos nuevos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
+
 st.sidebar.markdown(f"""
 <div style="text-align: center; color: #87A98A; font-size: 0.8rem; margin-top: -10px; margin-bottom: 20px;">
     ⏳ Última actualización:<br><b>{ultima_act}</b>
 </div>
 """, unsafe_allow_html=True)
+
+# ==========================================
+# 4. MÓDULO 1: DESEMPEÑO MÉDICO
+# ==========================================
 if modulo_seleccionado == "Desempeño Médico":
     if "acceso_modulo_1" not in st.session_state:
         st.session_state["acceso_modulo_1"] = False
+
     if not st.session_state["acceso_modulo_1"]:
         st.markdown("<br><br>", unsafe_allow_html=True)
         col_vacia1, col_login, col_vacia2 = st.columns([1, 1, 1])
+
         with col_login:
             st.markdown("""
 <div style="background-color: #262730; padding: 30px; border-radius: 8px; border-top: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4); text-align: center;">
@@ -393,24 +467,30 @@ if modulo_seleccionado == "Desempeño Médico":
             if st.button("Cerrar Sesión"):
                 st.session_state["acceso_modulo_1"] = False
                 st.rerun()
+
         st.sidebar.markdown("<br>", unsafe_allow_html=True)
         st.sidebar.title("Filtro Ejecutivo")
         lista_medicos = ["Todos"] + df_medicos["NOMBRE"].dropna().astype(str).unique().tolist()
         medico_seleccionado = st.sidebar.selectbox("Seleccione un Médico", lista_medicos)
+
         if medico_seleccionado != "Todos":
             df_med_filtrado = df_medicos[df_medicos["NOMBRE"].astype(str) == medico_seleccionado]
             df_fact_filtrado = df_fact[df_fact["NOMBRE"].astype(str) == medico_seleccionado]
         else:
             df_med_filtrado = df_medicos.copy()
             df_fact_filtrado = df_fact.copy()
+
         cant_meses = build_month_columns("Cantidad")
         monto_meses = build_month_columns("Monto")
+
         pruebas_global = df_fact[[c for c in cant_meses if c in df_fact.columns]].sum().sum()
         pruebas_totales = df_fact_filtrado[[c for c in cant_meses if c in df_fact_filtrado.columns]].sum().sum()
         porcentaje_pruebas = (pruebas_totales / pruebas_global) * 100 if pruebas_global > 0 else 0
+
         inversion_cols_top = [c for c in df_fact.columns if "Inversión" in c or "INVERSIÓN" in c.upper()]
         inversion_total_filtrada = df_fact_filtrado[inversion_cols_top].sum().sum() if inversion_cols_top else 0
         estatus_beneficios = "Múltiples" if medico_seleccionado == "Todos" else ("Sí" if inversion_total_filtrada > 0 else "No")
+
         st.markdown("""
 <div class="brand-banner">
     <div class="brand-left">
@@ -421,8 +501,10 @@ if modulo_seleccionado == "Desempeño Médico":
     </div>
 </div>
 """, unsafe_allow_html=True)
+
         st.markdown("<h1 class='titulo-principal'>Inteligencia Comercial y Desempeño</h1>", unsafe_allow_html=True)
         st.markdown("<p class='descripcion-modulo'>Analice el impacto comercial, la cuota de participación por especialidad y el rendimiento detallado de la red médica a nivel nacional.</p>", unsafe_allow_html=True)
+
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
             st.metric("Participación de Pruebas (%)", f"{porcentaje_pruebas:.2f}%")
@@ -436,11 +518,14 @@ if modulo_seleccionado == "Desempeño Médico":
             st.metric("Especialidad", esp)
         with col5:
             st.metric("Beneficios Activos", estatus_beneficios)
+
         st.markdown("<br>", unsafe_allow_html=True)
         tab1, tab2, tab3 = st.tabs(["Visión General", "Análisis de Pruebas", "Ranking y Beneficios"])
+
         with tab1:
             st.markdown("<br>", unsafe_allow_html=True)
             colA, colB = st.columns([2, 1])
+
             with colA:
                 st.subheader("Evolución Global de Pruebas")
                 ventas_por_mes = [df_fact_filtrado[col].sum() if col in df_fact_filtrado.columns else 0 for col in cant_meses]
@@ -448,21 +533,27 @@ if modulo_seleccionado == "Desempeño Médico":
                 fig_line = px.line(df_linea, x="Mes", y="Pruebas", template="plotly_dark", markers=True, line_shape="spline")
                 fig_line.update_traces(line_color="#5C95A6", line_width=4, marker=dict(size=8, color="#87A98A"))
                 st.plotly_chart(fig_line, use_container_width=True)
+
             with colB:
                 st.subheader("Cobertura Territorial")
                 if not df_med_filtrado.empty and mexico_geojson:
                     try:
                         todos_los_estados = [f["properties"]["name"] for f in mexico_geojson["features"]]
                         nombre_cdmx = next((n for n in todos_los_estados if "Distrito" in n or "Ciudad" in n or "CDMX" in n), "Ciudad de México")
+
                         estado_tmp = df_med_filtrado["Estado_oficial"].copy()
                         estado_tmp = estado_tmp.replace(["Ciudad de México", "Distrito Federal"], nombre_cdmx)
+
                         df_agrupado = estado_tmp.value_counts().reset_index()
                         df_agrupado.columns = ["Estado_oficial", "Doctores"]
+
                         df_base = pd.DataFrame({"Estado_oficial": todos_los_estados, "Doctores": 0})
                         df_mapa = pd.concat([df_base, df_agrupado]).groupby("Estado_oficial", as_index=False).sum()
+
                         max_docs = df_mapa["Doctores"].max() if not df_mapa.empty else 0
                         if max_docs == 0:
                             max_docs = 1
+
                         fig_map = px.choropleth(
                             df_mapa,
                             geojson=mexico_geojson,
@@ -487,6 +578,7 @@ if modulo_seleccionado == "Desempeño Médico":
                         st.info("Configurando vista territorial...")
                 else:
                     st.info("Sin datos para mostrar en el mapa.")
+
             st.markdown("<hr>", unsafe_allow_html=True)
             st.subheader("Distribución Mensual por Tipo de Prueba")
             datos_barras = []
@@ -496,14 +588,17 @@ if modulo_seleccionado == "Desempeño Médico":
                     temp.columns = ["Prueba", "Cantidad"]
                     temp["Mes"] = MONTHS_SHORT[idx_m]
                     datos_barras.append(temp)
+
             if datos_barras:
                 df_barras = pd.concat(datos_barras).dropna()
                 df_barras["Prueba"] = df_barras["Prueba"].astype(str).str.strip()
                 df_barras = df_barras[(df_barras["Prueba"] != "0") & (df_barras["Prueba"] != "")]
                 df_barras = df_barras.groupby(["Mes", "Prueba"])["Cantidad"].sum().reset_index()
+
                 df_pivot = df_barras.pivot(index="Mes", columns="Prueba", values="Cantidad").fillna(0)
                 df_pivot = df_pivot.reindex(MONTHS_SHORT).fillna(0)
                 df_barras_clean = df_pivot.reset_index().melt(id_vars="Mes", value_name="Cantidad")
+
                 colores_marca = ["#2EC4B6", "#FF9F1C", "#5C95A6", "#87A98A", "#E2A973", "#4A7A8A", "#999999", "#A3C1CC"]
                 fig_line_prod = px.line(
                     df_barras_clean,
@@ -520,6 +615,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 st.plotly_chart(fig_line_prod, use_container_width=True)
             else:
                 st.info("No hay datos suficientes para graficar.")
+
         with tab2:
             st.subheader("Porcentaje de Participación por Prueba")
             lista_df_prod = []
@@ -528,6 +624,7 @@ if modulo_seleccionado == "Desempeño Médico":
                     temp = df_fact_filtrado[[f"Producto {mes}", f"Cantidad {mes}"]].copy()
                     temp.columns = ["Producto", "Cantidad"]
                     lista_df_prod.append(temp)
+
             df_productos = pd.DataFrame()
             if lista_df_prod:
                 df_productos = pd.concat(lista_df_prod).dropna()
@@ -537,6 +634,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 df_productos = df_productos[df_productos["Cantidad"] > 0].sort_values("Cantidad", ascending=False)
                 total_p = df_productos["Cantidad"].sum()
                 df_productos["Porcentaje"] = (df_productos["Cantidad"] / total_p) * 100 if total_p > 0 else 0
+
             if not df_productos.empty:
                 top_pruebas = df_productos.head(4)
                 cols_porcentaje = st.columns(len(top_pruebas))
@@ -544,6 +642,7 @@ if modulo_seleccionado == "Desempeño Médico":
                     with cols_porcentaje[idx]:
                         st.metric(label=f"{row.Producto}", value=f"{row.Porcentaje:.1f}%", delta=f"{int(row.Cantidad)} ventas", delta_color="off")
                         st.progress(int(row.Porcentaje))
+
                 st.markdown("<br>", unsafe_allow_html=True)
                 colores_marca = ["#5C95A6", "#87A98A", "#A3C1CC", "#999999", "#D1E0E5"]
                 fig_pie = px.pie(df_productos, values="Cantidad", names="Producto", hole=0.45, template="plotly_dark", color_discrete_sequence=colores_marca)
@@ -551,6 +650,7 @@ if modulo_seleccionado == "Desempeño Médico":
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
                 st.info("No hay ventas registradas para generar el desglose.")
+
         with tab3:
             st.subheader("Ranking de Médicos (100% Confidencial)")
             st.markdown(f"""
@@ -559,27 +659,32 @@ if modulo_seleccionado == "Desempeño Médico":
     <p style="margin-top: 8px; color: #FFFFFF; font-size: 1.6rem; font-weight: bold;">{porcentaje_pruebas:.2f}% <span style="font-size: 1.05rem; font-weight: normal; color: #A3C1CC;">del total global de la empresa</span></p>
 </div>
 """, unsafe_allow_html=True)
+
             df_ranking = []
             ingreso_global = df_fact[[c for c in monto_meses if c in df_fact.columns]].sum().sum()
             inversion_cols = [c for c in df_fact.columns if "Inversión" in c or "INVERSIÓN" in c.upper()]
             inversion_global = df_fact[inversion_cols].sum().sum() if inversion_cols else 0
+
             for _, row in df_fact_filtrado.iterrows():
                 nombre = row["NOMBRE"]
                 ingresos_medico = sum(pd.to_numeric(row[c], errors="coerce") for c in monto_meses if c in df_fact.columns)
                 pruebas_medico = sum(pd.to_numeric(row[c], errors="coerce") for c in cant_meses if c in df_fact.columns)
                 inversion_medico = sum(pd.to_numeric(row[col], errors="coerce") for col in inversion_cols)
+
                 df_ranking.append({
                     "Médico": nombre,
                     "Pruebas": pruebas_medico,
                     "Ingreso ($)": ingresos_medico,
                     "Beneficio ($)": inversion_medico,
                 })
+
             df_ranking = pd.DataFrame(df_ranking).groupby("Médico").sum().reset_index()
             if not df_ranking.empty:
                 df_ranking["% de Pruebas"] = (df_ranking["Pruebas"] / pruebas_global) * 100 if pruebas_global > 0 else 0
                 df_ranking["% de Ingresos"] = (df_ranking["Ingreso ($)"] / ingreso_global) * 100 if ingreso_global > 0 else 0
                 df_ranking["% de Beneficios"] = (df_ranking["Beneficio ($)"] / inversion_global) * 100 if inversion_global > 0 else 0
                 df_ranking = df_ranking.sort_values("% de Pruebas", ascending=False)
+
                 st.dataframe(
                     df_ranking,
                     column_config={
@@ -592,35 +697,42 @@ if modulo_seleccionado == "Desempeño Médico":
                     column_order=["Médico", "% de Pruebas", "% de Ingresos", "% de Beneficios"],
                     use_container_width=True,
                 )
+
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.subheader("Desglose de Participación por Tipo de Prueba")
                 st.markdown("Muestra la cantidad de pruebas vendidas por médico y qué porcentaje representan frente a **todas las ventas nacionales** de ese mismo tipo de prueba.")
+
                 lista_global_prod = []
                 for mes in MONTHS_ES:
                     if f"Producto {mes}" in df_fact.columns and f"Cantidad {mes}" in df_fact.columns:
                         temp = df_fact[[f"Producto {mes}", f"Cantidad {mes}"]].copy()
                         temp.columns = ["Producto", "Cantidad"]
                         lista_global_prod.append(temp)
+
                 df_global_prod = pd.concat(lista_global_prod).dropna() if lista_global_prod else pd.DataFrame()
                 if not df_global_prod.empty:
                     df_global_prod["Producto"] = df_global_prod["Producto"].astype(str).str.strip()
                     df_global_prod = df_global_prod[(df_global_prod["Producto"] != "0") & (df_global_prod["Producto"] != "")]
                     totales_globales_producto = df_global_prod.groupby("Producto")["Cantidad"].sum().to_dict()
+
                     lista_todas_ventas = []
                     for mes in MONTHS_ES:
                         if f"Producto {mes}" in df_fact_filtrado.columns and f"Cantidad {mes}" in df_fact_filtrado.columns:
                             temp = df_fact_filtrado[["NOMBRE", f"Producto {mes}", f"Cantidad {mes}"]].copy()
                             temp.columns = ["Médico", "Prueba", "Cantidad"]
                             lista_todas_ventas.append(temp)
+
                     if lista_todas_ventas:
                         df_todas_ventas = pd.concat(lista_todas_ventas).dropna()
                         df_todas_ventas["Prueba"] = df_todas_ventas["Prueba"].astype(str).str.strip()
                         df_todas_ventas = df_todas_ventas[(df_todas_ventas["Prueba"] != "0") & (df_todas_ventas["Prueba"] != "")]
+
                         df_doc_prueba = df_todas_ventas.groupby(["Médico", "Prueba"])["Cantidad"].sum().reset_index()
                         df_doc_prueba = df_doc_prueba[df_doc_prueba["Cantidad"] > 0]
                         df_doc_prueba["Total Global"] = df_doc_prueba["Prueba"].map(totales_globales_producto).fillna(0)
                         df_doc_prueba["Cuota del Producto (%)"] = (df_doc_prueba["Cantidad"] / df_doc_prueba["Total Global"]) * 100
                         df_doc_prueba_display = df_doc_prueba[["Médico", "Prueba", "Cantidad", "Cuota del Producto (%)"]].sort_values(["Médico", "Cantidad"], ascending=[True, False])
+
                         st.dataframe(
                             df_doc_prueba_display,
                             column_config={
@@ -638,6 +750,10 @@ if modulo_seleccionado == "Desempeño Médico":
                     st.info("No hay datos globales por producto para comparar.")
             else:
                 st.info("Sin datos para generar ranking.")
+
+# ==========================================
+# 5. MÓDULO 2: SEGUIMIENTO DE PRUEBAS
+# ==========================================
 elif modulo_seleccionado == "Seguimiento de Pruebas":
     st.markdown("""
 <div class="brand-banner">
@@ -649,14 +765,17 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
     </div>
 </div>
 """, unsafe_allow_html=True)
+
     st.markdown("<h1 class='titulo-principal'>Centro de Control Operativo</h1>", unsafe_allow_html=True)
     st.markdown("<p class='descripcion-modulo'>Monitoree el progreso en tiempo real de las pruebas, identifique cuellos de botella y gestione la bitácora logística.</p>", unsafe_allow_html=True)
+
     if df_ventas.empty:
         st.warning("No se encontraron datos en la hoja de VENTAS. Asegúrate de cargar el archivo Excel correctamente o que exista la pestaña en tu Google Sheet.")
     else:
         df_ventas_reales = df_ventas.copy()
         for col in df_ventas_reales.columns:
             df_ventas_reales[col] = df_ventas_reales[col].map(clean_string)
+
         df_ventas_reales = df_ventas_reales[
             (df_ventas_reales.get("PACIENTE", pd.Series(dtype=str)).astype(str).str.strip() != "")
             & (df_ventas_reales.get("PACIENTE", pd.Series(dtype=str)).astype(str).str.upper() != "NAN")
@@ -665,8 +784,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
         ].copy()
         df_ventas_reales = df_ventas_reales[~df_ventas_reales["PACIENTE"].astype(str).str.upper().str.contains("TOTAL")]
         df_ventas_reales = df_ventas_reales.drop_duplicates(subset=["FOLIO", "PACIENTE"])
+
         status_cols = [c for c in df_ventas_reales.columns if "STATUS" in c.upper()]
         fecha_cols = [c for c in df_ventas_reales.columns if "FECHA" in c.upper()]
+
         def get_month_from_row(row):
             for fc in fecha_cols:
                 val = normalize_status_value(row.get(fc, ""))
@@ -677,7 +798,9 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     if pd.notna(dt) and 2000 < dt.year < 2050:
                         return f"{MONTHS_ES[dt.month - 1]} {dt.year}"
             return "Sin fecha"
+            
         df_ventas_reales["MES_REGISTRO"] = df_ventas_reales.apply(get_month_from_row, axis=1)
+
         def get_current_status(row):
             for sc in status_cols:
                 val = normalize_status_value(row.get(sc, ""))
@@ -688,10 +811,13 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 if val:
                     return val
             return "PENDIENTE"
+
         df_ventas_reales["ESTADO_ACTUAL"] = df_ventas_reales.apply(get_current_status, axis=1)
         df_ventas_reales["CATEGORIA_ESTADO"] = df_ventas_reales["ESTADO_ACTUAL"].map(get_status_category)
+
         st.subheader("Búsqueda y Filtros Operativos")
         col_f1, col_f2, col_f3 = st.columns(3)
+        
         with col_f1:
             meses_presentes = df_ventas_reales["MES_REGISTRO"].unique().tolist()
             
@@ -701,20 +827,25 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     mes, ano = ma.split()
                     return (int(ano), MONTHS_ES.index(mes))
                 except:
-                    return (0, 0)    
+                    return (0, 0)
+                    
             meses_validos = sorted([m for m in meses_presentes if m != "Sin fecha"], key=sort_mes_ano, reverse=True)
             lista_meses = ["Todos"] + meses_validos
             if "Sin fecha" in meses_presentes:
                 lista_meses.append("Sin fecha")
+            
             filtro_mes = st.selectbox("Filtrar por Mes:", lista_meses)
+            
         with col_f2:
             lista_vend = ["Todos"] + safe_unique_values(df_ventas_reales.get("VENDEDOR", pd.Series([], dtype=str)))
             filtro_vendedor = st.selectbox("Filtrar por Representante Médico:", lista_vend)
+            
         with col_f3:
             filtro_estado = st.selectbox(
                 "Filtrar por Etapa del Proceso:",
                 ["Todos", "Solicitud Registrada", "Toma / Recolección", "Orden de Compra", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo", "Cancelada"],
             )
+
         df_filtrado = df_ventas_reales.copy()
         if filtro_mes != "Todos":
             df_filtrado = df_filtrado[df_filtrado["MES_REGISTRO"] == filtro_mes]
@@ -722,13 +853,16 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             df_filtrado = df_filtrado[df_filtrado["VENDEDOR"].astype(str).str.strip() == filtro_vendedor]
         if filtro_estado != "Todos":
             df_filtrado = df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == filtro_estado]
+
         total_pruebas = len(df_filtrado)
         total_activas = len(df_filtrado[~df_filtrado["CATEGORIA_ESTADO"].isin(["Resultado Listo", "Cancelada"])])
         total_transito = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Envío a Lab"])
         total_listas = len(df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"])
+
         tat_promedio = 0
         tat_dias = []
         df_listas = df_filtrado[df_filtrado["CATEGORIA_ESTADO"] == "Resultado Listo"]
+        
         for _, row in df_listas.iterrows():
             fechas_validas = []
             for f_col, s_col in zip(fecha_cols, status_cols):
@@ -743,15 +877,19 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             if fechas_validas:
                 s_fechas = pd.Series(fechas_validas)
                 tat_dias.append((s_fechas.max() - s_fechas.min()).days)
+                
         if tat_dias:
             tat_promedio = sum(tat_dias) / len(tat_dias)
+
         col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
         col_k1.metric("Total de Pruebas", total_pruebas)
         col_k2.metric("Pruebas Activas", total_activas)
         col_k3.metric("Enviadas a Lab", total_transito)
         col_k4.metric("Resultados Listos", total_listas)
         col_k5.metric("TAT Promedio", f"{int(tat_promedio)} días" if tat_dias else "N/A")
+
         st.markdown("<hr>", unsafe_allow_html=True)
+
         st.subheader("Distribución Actual del Proceso")
         df_dona = df_filtrado.groupby("CATEGORIA_ESTADO").size().reset_index(name="Cantidad")
         colores_dona_map = {
@@ -763,6 +901,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             "Resultado Listo": "#2EC4B6",
             "Cancelada": "#FF4B4B",
         }
+
         if not df_dona.empty:
             fig_dona = px.pie(
                 df_dona,
@@ -778,8 +917,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
             st.plotly_chart(fig_dona, use_container_width=True)
         else:
             st.info("No hay datos para mostrar en la gráfica con los filtros seleccionados.")
+
         st.markdown("<hr>", unsafe_allow_html=True)
+
         st.markdown("<h4 style='color: #B4B4B4; font-size: 1.1rem;'>Tabla de Trabajo Operativo</h4>", unsafe_allow_html=True)
+        
         def calc_tat_individual(row):
             fechas_validas = []
             for f_col, s_col in zip(fecha_cols, status_cols):
@@ -800,16 +942,21 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 else:
                     return max(0, (pd.Timestamp.today().normalize() - s_fechas.min().normalize()).days)
             return 0
+
         df_filtrado["Días (TAT)"] = df_filtrado.apply(calc_tat_individual, axis=1)
+        
         columnas_tabla = ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL", "Días (TAT)"]
         df_tabla = df_filtrado.reindex(columns=[c for c in columnas_tabla if c in df_filtrado.columns]).copy()
+
         for col in ["FOLIO", "PACIENTE", "MEDICO", "PRUEBA", "VENDEDOR", "CATEGORIA_ESTADO", "ESTADO_ACTUAL"]:
             if col in df_tabla.columns:
                 df_tabla[col] = df_tabla[col].map(lambda x: clean_string(x) if not pd.isna(x) else "")
+
         df_tabla["CATEGORIA_ESTADO"] = df_tabla["CATEGORIA_ESTADO"].replace({"": "Sin información"})
         df_tabla["ESTADO_ACTUAL"] = df_tabla["ESTADO_ACTUAL"].replace({"": "Sin información"})
         df_tabla["__orden_estado__"] = df_tabla["CATEGORIA_ESTADO"].map(ESTADO_ORDER).fillna(999)
         df_tabla = df_tabla.sort_values(["__orden_estado__", "FOLIO"], ascending=[True, True]).drop(columns="__orden_estado__").reset_index(drop=True)
+
         st.dataframe(
             df_tabla,
             hide_index=True,
@@ -826,13 +973,17 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 "Días (TAT)": st.column_config.NumberColumn("Días (TAT)", help="Días transcurridos. Si dice -1 significa cancelado.", format="%d"),
             },
         )
+
         st.markdown("<br>", unsafe_allow_html=True)
+
         lista_pacientes = safe_unique_values(df_filtrado.get("PACIENTE", pd.Series([], dtype=str)))
         col_search, _ = st.columns([2, 1])
         with col_search:
             paciente_seleccionado = st.selectbox("Seleccione un Paciente para ver Detalles, Alertas y Bitácora:", ["Seleccione un paciente..."] + lista_pacientes)
+
         if paciente_seleccionado != "Seleccione un paciente...":
             datos_paciente = df_ventas_reales[df_ventas_reales["PACIENTE"] == paciente_seleccionado].iloc[-1]
+
             historial = []
             for f_col, s_col in zip(fecha_cols, status_cols):
                 fecha_val = normalize_status_value(datos_paciente.get(f_col, ""))
@@ -840,9 +991,12 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                 if status_val:
                     fecha_limpia = fecha_val.split()[0] if " " in fecha_val else fecha_val
                     dt_ord = pd.to_datetime(fecha_limpia, dayfirst=True, errors="coerce")
+                    
                     is_valid_date = pd.notna(dt_ord) and 2000 < dt_ord.year < 2050
+                    
                     cat = get_status_category(status_val)
                     orden = ESTADO_ORDER.get(cat, 99)
+                    
                     historial.append({
                         "Fecha": fecha_limpia,
                         "Estado": status_val,
@@ -852,16 +1006,21 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         "_orden": orden,
                         "_cat": cat
                     })
+
             df_historial = pd.DataFrame(historial)
             is_anomalia = False
+            
             if not df_historial.empty:
                 df_validas = df_historial[df_historial["_dt"] > pd.Timestamp.min].copy()
+                
                 hoy = pd.Timestamp.today().normalize()
                 if (df_validas["_dt"] > hoy).any():
                     is_anomalia = True
+                
                 if not is_anomalia and not df_validas.empty:
                     df_validas = df_validas.sort_values(by="_dt")
                     max_orden_visto = -1
+                    
                     for _, row in df_validas.iterrows():
                         cat = row["_cat"]
                         orden = row["_orden"]
@@ -872,8 +1031,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                             break
                         if orden > max_orden_visto:
                             max_orden_visto = orden
+
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown(f"<h3 style='color: #FFFFFF; font-size: 1.2rem; margin-bottom: 20px;'>HISTORIAL Y ESTATUS DE LA PRUEBA - PACIENTE: {str(paciente_seleccionado).upper()}</h3>", unsafe_allow_html=True)
+
             if is_anomalia:
                 st.markdown("""
                 <div style="background-color: rgba(255, 193, 7, 0.15); border-left: 4px solid #FFC107; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
@@ -881,12 +1042,17 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     <span style="color: #E0E0E0;">El sistema detectó una fecha capturada en el futuro, o el orden de las fechas no sigue la secuencia lógica del proceso. <b>POR FAVOR REVISAR EL ARCHIVO CON TU SUPERIOR.</b></span>
                 </div>
                 """, unsafe_allow_html=True)
+
             col_track, col_details = st.columns([2, 1], gap="large")
+
             with col_track:
                 st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem;'>Progreso de la prueba</h4>", unsafe_allow_html=True)
+                
                 etapas = ["Solicitud Registrada", "Toma / Recolección", "Orden de Compra", "Envío a Lab", "En Análisis (Lab)", "Resultado Listo"]
                 etapas_labels = etapas
+
                 cat_actual = datos_paciente.get("CATEGORIA_ESTADO", "Solicitud Registrada")
+                
                 is_cancelled = False
                 idx_actual = 0
                 if cat_actual == "Cancelada":
@@ -904,8 +1070,11 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                     idx_actual = max_idx
                 elif cat_actual in etapas:
                     idx_actual = etapas.index(cat_actual)
+
                 progress_percentage = (idx_actual / (len(etapas) - 1)) * 100 if len(etapas) > 1 else 0
+                
                 color_principal = "#FFC107" if is_anomalia else "#5C95A6"
+                
                 html_stepper = f"""
 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; margin: 40px 0 30px 0;">
 <div style="position: absolute; top: 17px; left: 8%; width: 84%; height: 4px; background-color: #333333; z-index: 0;"></div>
@@ -925,6 +1094,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                             icon, color, text_color, sub_text = "●", "#FF9F1C", "#FF9F1C", "En Proceso"
                     else:
                         icon, color, text_color, sub_text = "", "#333333", "#888888", "Pendiente"
+
                     html_stepper += f"""
 <div style="z-index: 2; display: flex; flex-direction: column; align-items: center; flex: 1; background: transparent;">
 <div style="width: 38px; height: 38px; border-radius: 50%; background-color: #1E1F25; border: 4px solid {color}; display: flex; align-items: center; justify-content: center; color: {color}; font-size: 18px; font-weight: bold;">{icon}</div>
@@ -934,12 +1104,14 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 """
                 html_stepper += "</div>"
                 st.markdown(html_stepper, unsafe_allow_html=True)
+
             with col_details:
                 fechas_validas_list = []
                 if not df_historial.empty:
                     valid_df = df_historial[df_historial["_dt"] > pd.Timestamp.min]
                     if not valid_df.empty:
                         fechas_validas_list = valid_df["_dt"].tolist()
+
                 if fechas_validas_list:
                     fechas_validas_series = pd.Series(fechas_validas_list)
                     fecha_inicio = fechas_validas_series.min()
@@ -956,6 +1128,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
                         tat_text = f"<span style='color: {color_tat};'>{dias} días transcurridos</span>"
                 else:
                     tat_text = "N/A"
+
                 comentario_raw = normalize_status_value(datos_paciente.get("COMENTARIO", ""))
                 comentario_html = ""
                 if comentario_raw:
@@ -964,6 +1137,7 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 <b>Nota / Alerta Operativa:</b><br>{comentario_raw}
 </div>
 """
+
                 html_detalles = f"""
 <div style="background-color: #262730; padding: 20px 25px; border-radius: 8px; border-left: 6px solid #5C95A6; box-shadow: 2px 2px 8px rgba(0,0,0,0.4);">
 <h4 style="color: #5C95A6; margin-top: 0; font-family: 'Arial', sans-serif; font-size: 1rem; border-bottom: 1px solid #333; padding-bottom: 10px;">Detalles del Paciente e Institución</h4>
@@ -979,8 +1153,10 @@ elif modulo_seleccionado == "Seguimiento de Pruebas":
 </div>
 """
                 st.markdown(html_detalles, unsafe_allow_html=True)
+
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("<h4 style='color: #B4B4B4; font-size: 1rem; margin-bottom: 15px;'>Historial de Estados y Bitácora</h4>", unsafe_allow_html=True)
+
             if not df_historial.empty:
                 df_mostrar = df_historial.drop(columns=["_dt", "_orden", "_cat"])
                 st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
